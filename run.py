@@ -1,6 +1,6 @@
 import subprocess
 from typing import Iterable
-from mods.log import LOG
+from .log import LOG
 
 
 def run(cmd: str | Iterable[str], check: bool, capture_output: bool,

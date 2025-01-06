@@ -1,7 +1,7 @@
 import logging
 import sys
 from os import environ
-from mods.colors import green, cyan, yellow, red
+from .colors import green, cyan, yellow, red
 
 LOG_FILENAME = environ.get('LOG_FILE')
 LOG_LEVEL_NAME = environ.get('LOG_LEVEL', '').upper()

@@ -1,4 +1,3 @@
-from .run import read
 import platform
 import hashlib
 from cryptography.fernet import Fernet
@@ -6,6 +5,7 @@ import base64
 
 
 def decrypt_openssl(senha: str, privkey_path: str) -> str:
+    from .run import read
     cmd = f"echo -n \"{senha}\" | base64 --decode | openssl pkeyutl -decrypt -inkey '{privkey_path}'"
     return read(cmd)
 
@@ -20,7 +20,7 @@ def get_hardware_id() -> str:
     with open('/proc/cpuinfo') as f:
         infos = [line.lower() for line in f.readlines()]
         idkeys = ('serial', 'uuid', 'physical id', 'model name')
-        idlines = set(line for line in infos if any(key in line for key in idkeys))
+        idlines = [line for line in infos if any(key in line for key in idkeys)]
         for line in idlines:
             identifiers.append(line.split(':')[1].strip())
 
@@ -48,6 +48,7 @@ def generate_system_key():
         get_hardware_id()
     ]
 
+    # print('System info:', system_info)
     # Create a consistent string from system info
     system_string = "|".join(system_info)
 
@@ -60,21 +61,24 @@ def generate_system_key():
     return key
 
 
-def encrypt(message: str):
+def encrypt(text: str) -> str:
     """
-    Encrypts a message using a key derived from system information.
-    """
-    key = generate_system_key()
-    f = Fernet(key)
-    encrypted_message = f.encrypt(message.encode())
-    return encrypted_message
-
-
-def decrypt(encrypted_message: str):
-    """
-    Decrypts a message using a key derived from system information.
+    Encrypts a text using a key derived from system information.
     """
     key = generate_system_key()
+    # print('Encrypting with key:', key)
     f = Fernet(key)
-    decrypted_message = f.decrypt(encrypted_message).decode()
-    return decrypted_message
+    encrypted_bytes = f.encrypt(text.encode('utf-8'))
+    return base64.urlsafe_b64encode(encrypted_bytes).decode('utf-8')
+
+
+def decrypt(encrypted_text: str) -> str:
+    """
+    Decrypts a text using a key derived from system information.
+    """
+    key = generate_system_key()
+    # print('Decrypting with key:', key)
+    f = Fernet(key)
+    encrypted_bytes = base64.urlsafe_b64decode(encrypted_text.encode('utf-8'))
+    decrypted_bytes = f.decrypt(encrypted_bytes)
+    return decrypted_bytes.decode('utf-8')

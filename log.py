@@ -8,8 +8,9 @@ LOG_LEVEL_NAME = environ.get('LOG_LEVEL', '').upper()
 if not LOG_LEVEL_NAME:
     LOG_LEVEL_NAME = 'DEBUG' if sys.stdout.isatty() else 'INFO'
 
-LOG_LEVEL_NUMBER = getattr(logging, LOG_LEVEL_NAME, None)
-if not isinstance(LOG_LEVEL_NUMBER, int):
+try:
+    LOG_LEVEL_NUMBER: int = getattr(logging, LOG_LEVEL_NAME)
+except Exception:
     raise ValueError(f'Nível de log inválido: {LOG_LEVEL_NAME}')
 
 LOG = logging.getLogger()
@@ -38,16 +39,17 @@ class CustomFormatter(logging.Formatter):
 #    datefmt='%d %b %H:%M:%S')
 
 LOG.setLevel(LOG_LEVEL_NUMBER)
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(CustomFormatter())
-LOG.addHandler(stream_handler)
-
-LOG.info(f'Log file: "{LOG_FILENAME}". Log level: {LOG_LEVEL_NAME} ({LOG_LEVEL_NUMBER})')
 
 if LOG_FILENAME:
     file_handler = logging.FileHandler(LOG_FILENAME)
     file_handler.setFormatter(CustomFormatter())
     LOG.addHandler(file_handler)
+else:
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(CustomFormatter())
+    LOG.addHandler(stream_handler)
+
+LOG.debug(f'Log file: "{LOG_FILENAME}". Log level: {LOG_LEVEL_NAME} ({LOG_LEVEL_NUMBER})')
 
 
 def _concat(*args) -> str:

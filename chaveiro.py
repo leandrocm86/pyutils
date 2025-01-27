@@ -2,8 +2,56 @@ import platform
 import hashlib
 from cryptography.fernet import Fernet
 import base64
+import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
 
+def _load_aes_key(key_path):
+    """Loads a Base64 encoded AES key from a file."""
+    try:
+        with open(key_path, 'r') as f:
+            key_b64 = f.read().strip()
+            key = base64.b64decode(key_b64)
+            if len(key) != 32:  # Check if the key is 256 bits (32 bytes)
+                raise ValueError("The key must be 32 bytes (256 bits)")
+            return key
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Key file not found at: {key_path}")
+    except ValueError as e:
+        raise ValueError(f"Invalid key file: {e}")
+
+
+def encrypt_aes(plaintext, key_path):
+    '''
+    Encrypts plaintext using AES-256-GCM.
+    OBS: Nao eh compativel com openssl. Um texto encriptado com essa funcao deve ser desencriptado com a funcao decrypt_aes.
+    '''
+    key = _load_aes_key(key_path)
+    nonce = os.urandom(12)  # GCM typically uses 96 bits/12 bytes for nonce
+    cipher = Cipher(algorithms.AES(key), modes.GCM(nonce), backend=default_backend())
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(plaintext.encode('utf-8')) + encryptor.finalize()
+    return base64.b64encode(nonce + encryptor.tag + ciphertext).decode('utf-8')
+
+
+def decrypt_aes(ciphertext, key_path):
+    '''
+    Decrypts ciphertext using AES-256-GCM.
+    OBS: Nao eh compativel com openssl. Esta funcao soh pode descriptografar textos encriptados com a funcao encrypt_aes.
+    '''
+    key = _load_aes_key(key_path)
+    decoded_data = base64.b64decode(ciphertext.encode('utf-8'))
+    nonce = decoded_data[:12]
+    tag = decoded_data[12:28]  # GCM tag is 16 bytes
+    ciphertext = decoded_data[28:]
+    cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag), backend=default_backend())
+    decryptor = cipher.decryptor()
+    plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+    return plaintext.decode('utf-8')
+
+
+@DeprecationWarning
 def decrypt_openssl(senha: str, privkey_path: str) -> str:
     from .run import read
     cmd = f"echo -n \"{senha}\" | base64 --decode | openssl pkeyutl -decrypt -inkey '{privkey_path}'"

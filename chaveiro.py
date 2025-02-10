@@ -124,9 +124,22 @@ def decrypt(encrypted_text: str) -> str:
     """
     Decrypts a text using a key derived from system information.
     """
-    key = generate_system_key()
-    # print('Decrypting with key:', key)
-    f = Fernet(key)
-    encrypted_bytes = base64.urlsafe_b64decode(encrypted_text.encode('utf-8'))
-    decrypted_bytes = f.decrypt(encrypted_bytes)
-    return decrypted_bytes.decode('utf-8')
+    f = Fernet(generate_system_key())
+
+    def encrypted_bytes(encrypted_text: str):
+        return base64.urlsafe_b64decode(encrypted_text.encode('utf-8'))
+
+    return f.decrypt(encrypted_bytes(encrypted_text)).decode('utf-8')
+
+
+def decrypt_from_tempfile(filepath: str) -> str:
+    """
+    Decrypts a text written inside a given file, consuming it.
+    The file gets deleted after read!
+    """
+    try:
+        with open(filepath, 'r') as f:
+            return decrypt(f.read())
+    finally:
+        os.remove(filepath)
+    

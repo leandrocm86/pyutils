@@ -2,8 +2,14 @@ import subprocess
 from typing import Iterable
 from .log import LOG
 
+# A grande vantagem de usar este mod em vez de subprocess diretamente
+# é que ele utiliza parâmetros padrão mais seguros:
+# - check=True: lança exceção se o comando falhar (exit code != 0)
+# - capture_output=True: retorna o output do comando e confere se está vazio quando esperado (exec)
+# - timeout=10: tempo máximo de execução, evitando travamentos
 
-def run(cmd: str | Iterable[str], check: bool, capture_output: bool,
+
+def _run(cmd: str | Iterable[str], check: bool, capture_output: bool,
         timeout: float = None) -> subprocess.CompletedProcess:
     LOG.debug(f'Executing: {cmd}')
     shell = isinstance(cmd, str)
@@ -22,7 +28,7 @@ def exec(cmd: str | Iterable[str], check=True, ignore_output=False, timeout=10):
         ignore_output: se False, uma exceção será lançada se houver qualquer output
         timeout: tempo máximo de execução em segundos (padrao 10)
     """
-    result = run(cmd, check, not ignore_output, timeout=timeout)
+    result = _run(cmd, check, not ignore_output, timeout=timeout)
     if not ignore_output:
         assert not result.stdout and not result.stderr, \
             f'Output inesperado: stdout={result.stdout}; stderr={result.stderr}'
@@ -36,7 +42,7 @@ def read(cmd: str | Iterable[str], check=True, timeout=10) -> str:
         check: se True, uma exceção será disparada se o comando falhar (exit code != 0)
         timeout: tempo máximo de execução em segundos (padrao 10)
     """
-    result = run(cmd, check, capture_output=True, timeout=timeout)
+    result = _run(cmd, check, capture_output=True, timeout=timeout)
     return result.stdout.strip() + result.stderr.strip()
 
 

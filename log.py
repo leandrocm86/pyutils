@@ -1,15 +1,14 @@
 import logging
 import sys
 from os import environ
+from typing import Any
 from .colors import green, cyan, yellow, red
 
 LOG_FILENAME = environ.get('LOG_FILE')
-LOG_LEVEL_NAME = environ.get('LOG_LEVEL', '').upper()
-if not LOG_LEVEL_NAME:
-    LOG_LEVEL_NAME = 'DEBUG' if sys.stdout.isatty() else 'INFO'
+LOG_LEVEL_NAME = environ.get('LOG_LEVEL', '').upper() or ('DEBUG' if sys.stdout.isatty() else 'INFO')
 
-LOG_LEVEL_NUMBER = getattr(logging, LOG_LEVEL_NAME, None)
-if not isinstance(LOG_LEVEL_NUMBER, int):
+LOG_LEVEL_NUMBER: int = getattr(logging, LOG_LEVEL_NAME, -1)
+if LOG_LEVEL_NUMBER == -1:
     raise ValueError(f'Nível de log inválido: {LOG_LEVEL_NAME}')
 
 LOG = logging.getLogger()
@@ -23,11 +22,11 @@ class CustomFormatter(logging.Formatter):
         'ERROR': red
     }
 
-    def __init__(self, fmt=f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
-                 datefmt='%d %b %H:%M:%S'):
-        super().__init__(fmt)
+    def __init__(self, fmt: str = f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
+                 datefmt: str = '%d %b %H:%M:%S'):
+        super().__init__(fmt=fmt, datefmt=datefmt)
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord):
         color = self.COLOR_BY_LEVEL.get(record.levelname)
         formatted_record = super().format(record)
         return color(formatted_record) if color else formatted_record
@@ -50,31 +49,31 @@ if LOG_FILENAME:
     LOG.addHandler(file_handler)
 
 
-def _concat(*args) -> str:
+def _concat(*args: tuple[Any, ...]) -> str:
     out = ''
     for arg in args:
         out += arg if isinstance(arg, str) else str(arg)
     return out
 
 
-def debug(*args):
+def debug(*args: Any):
     if LOG_LEVEL_NUMBER == logging.DEBUG:
         msg = _concat(*args)
         LOG.debug(msg)
 
 
-def info(*args):
+def info(*args: Any):
     if LOG_LEVEL_NUMBER <= logging.INFO:
         msg = _concat(*args)
         LOG.info(msg)
 
 
-def warn(*args):
+def warn(*args: Any):
     if LOG_LEVEL_NUMBER <= logging.WARNING:
         msg = _concat(*args)
         LOG.warning(msg)
 
 
-def error(*args, exception: bool = False):
+def error(*args: Any, exception: bool = False):
     msg = _concat(*args)
     LOG.error(msg, exc_info=exception, stack_info=exception)

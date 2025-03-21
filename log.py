@@ -37,16 +37,17 @@ class CustomFormatter(logging.Formatter):
 #    datefmt='%d %b %H:%M:%S')
 
 LOG.setLevel(LOG_LEVEL_NUMBER)
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(CustomFormatter())
-LOG.addHandler(stream_handler)
-
-LOG.info(f'Log file: "{LOG_FILENAME}". Log level: {LOG_LEVEL_NAME} ({LOG_LEVEL_NUMBER})')
 
 if LOG_FILENAME:
     file_handler = logging.FileHandler(LOG_FILENAME)
     file_handler.setFormatter(CustomFormatter())
     LOG.addHandler(file_handler)
+else:
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(CustomFormatter())
+    LOG.addHandler(stream_handler)
+
+LOG.debug(f'Log file: "{LOG_FILENAME}". Log level: {LOG_LEVEL_NAME} ({LOG_LEVEL_NUMBER})')
 
 
 def _concat(*args: tuple[Any, ...]) -> str:

@@ -1,19 +1,20 @@
 import requests
 from os import environ
-from mods.chaveiro import decrypt_aes
 
-PUSH_EXTERNAL_URL = decrypt_aes(environ['PUSH_EXTERNAL_URL'], environ['CHAVEIRO_PYTHONS'])
-PUSH_URL = f'http://{environ["SERVER_IP"]}:1060/portal'
+
 NUC_URL = 'http://nuc/'
 NUC_EXTERNAL_URL = 'http://www.portao.top/'
 WARN_HEADERS = {"Priority": "urgent", "Tags": "warning"}
 
 
 def push(msg: str, url=NUC_URL, warning=False):
+    PUSH_URL = f'http://{environ["SERVER_IP"]}:1060/portal'
     _push(msg, url, PUSH_URL, warning)
 
 
 def push_external(msg: str, url=NUC_EXTERNAL_URL, warning=False):
+    from mods.chaveiro import decrypt_aes
+    PUSH_EXTERNAL_URL = decrypt_aes(environ['PUSH_EXTERNAL_URL'], environ['CHAVEIRO_PYTHONS'])
     _push(msg, url, PUSH_EXTERNAL_URL, warning)
 
 

@@ -1,0 +1,9 @@
+setup.py
+flake8_var_final/__init__.py
+flake8_var_final/plugin.py
+flake8_var_final.egg-info/PKG-INFO
+flake8_var_final.egg-info/SOURCES.txt
+flake8_var_final.egg-info/dependency_links.txt
+flake8_var_final.egg-info/entry_points.txt
+flake8_var_final.egg-info/requires.txt
+flake8_var_final.egg-info/top_level.txt

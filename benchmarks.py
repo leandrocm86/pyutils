@@ -3,7 +3,7 @@ import inspect
 import gc
 import functools
 from itertools import cycle
-from mods.colors import yellow, cyan, green
+from mods.color import yellow, cyan, green
 
 colors = cycle((yellow, cyan, green))
 

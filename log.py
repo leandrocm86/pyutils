@@ -2,7 +2,7 @@ import logging
 import sys
 from os import environ
 from typing import Any
-from .colors import green, cyan, yellow, red
+from .color import green, cyan, yellow, red
 
 LOG_FILENAME = environ.get('LOG_FILE')
 LOG_LEVEL_NAME = environ.get('LOG_LEVEL', '').upper() or ('DEBUG' if sys.stdout.isatty() else 'INFO')

@@ -9,28 +9,33 @@ from .keyboard_events import KeyboardEvent
 
 
 def _find_keyboard_device(device_path: str, device_name: str) -> evdev.InputDevice:
-    """Tries to find the keyboard device with the given path and name.
-    If no path and name are given, it tries to find the only keyboard device available, raising an error if it can't.
+    """Tries to find the keyboard device with the given path and/or name.
+    If neither path or name are given, it tries to find the only keyboard device available, raising an error if it can't.
     IMPORTANT: It may be needed to add the system user to the input group (ex: sudo usermod -aG input username).
     """
     devices_str: list[str] = evdev.list_devices()  # type: ignore
-    devices: list[evdev.InputDevice] = [
-        evdev.InputDevice(path) for path in devices_str]
-    if device_name and device_path:
-        device = next((d for d in devices if device_path ==
-                      d.path and device_name == d.name), None)  # type: ignore
-        assert device, f'No device found with name {device_name} in {device_path}'
-        log.info(f'Keyboard found with the given path and name: {device_path} - {device.name}')
-        return device
+    devices: list[evdev.InputDevice] = [evdev.InputDevice(path) for path in devices_str]
+    filtered_devices: list[evdev.InputDevice] = devices
+
+    log.info(f"Searching for keyboard device. Given name: {device_name or 'any'}. Given path: {device_path or 'any'}")
+
+    if device_name:
+        filtered_devices = [d for d in filtered_devices if device_name == d.name]
     else:
-        keyboards = [
-            device for device in devices if 'keyboard' in device.name.lower()]
-        if len(keyboards) != 1:
-            for device in devices:
-                print(device.path, device.name, device.phys)  # type: ignore
-            raise OSError(f'{len(devices)} devices found, {len(keyboards)} seem keyboards. Check the list printed above.')
-        log.info(f'Only keyboard found: {keyboards[0].path} - {keyboards[0].name}')  # type: ignore
-        return keyboards[0]
+        filtered_devices = [d for d in filtered_devices if 'keyboard' in d.name.lower()]
+
+    if device_path:
+        filtered_devices = [d for d in filtered_devices if device_path == d.path]  # type: ignore
+
+    if not filtered_devices:
+        log.error('No keyboard device found! Check the list below:')
+        log.error('\n' + '\n'.join([d.path + ' - ' + d.name for d in devices]))  # type: ignore
+        quit()
+    elif len(filtered_devices) > 1:
+        log.warn('More than one possible device found. Choosing the last one.'
+                 ' If it is not the right one, specify it from the list below:')
+        log.warn('\n' + '\n'.join([d.path + ' - ' + d.name for d in filtered_devices]))  # type: ignore
+    return filtered_devices[-1]
 
 
 class KeyboardListener:
@@ -44,9 +49,6 @@ class KeyboardListener:
         self.buffered_events: list[KeyboardEvent] = []
 
     def connect(self, device_path: str = '', device_name: str = ''):
-        assert (device_path and device_name) or (not device_path and not device_name), \
-            'If path or name of the keyboard are specified, both must be, to ensure consistency.'
-
         log.info('STARTING KEYBOARD LISTENER')
         # Wait for the X server to be ready
         # while 'DISPLAY' not in os.environ:

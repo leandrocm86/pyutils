@@ -53,7 +53,7 @@ def decrypt_aes(ciphertext, key_path):
 
 @DeprecationWarning
 def decrypt_openssl(senha: str, privkey_path: str) -> str:
-    from .run import read
+    from .system import read
     cmd = f"echo -n \"{senha}\" | base64 --decode | openssl pkeyutl -decrypt -inkey '{privkey_path}'"
     return read(cmd)
 

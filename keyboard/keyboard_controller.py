@@ -1,7 +1,7 @@
 from enum import Enum
 from abc import ABC, abstractmethod
 from time import sleep, time
-from .. import log, run
+from .. import log, system
 from .keyboard_robot import KeyboardRobot
 from .keyboard_events import EventType, KeyboardEvent
 
@@ -118,7 +118,7 @@ class ExecuteCommandAction(ActionExecutor):
         self.command = command
 
     def execute(self) -> None:
-        run.exec_async(self.command)
+        system.exec_async(self.command)
 
 
 class ToggleProgramAction(ActionExecutor):
@@ -139,45 +139,45 @@ class ToggleProgramAction(ActionExecutor):
             self._toggle_program_x11()
 
     def _toggle_program_x11(self):
-        window_id = run.read(f'xdotool search --onlyvisible --classname {self.program}', check=False)
+        window_id = system.read(f'xdotool search --onlyvisible --classname {self.program}', check=False)
         if window_id:
             if len(window_id.splitlines()) > 1:
                 log.debug(f'Found multiple windows for {self.program}. Will pick the last one: {window_id}')
                 window_id = window_id.splitlines()[-1]
-            opened = 'window state: Normal' in run.read(f'xprop -id {window_id} WM_STATE')
+            opened = 'window state: Normal' in system.read(f'xprop -id {window_id} WM_STATE')
             if opened:
                 if self.minimize_not_kill:
-                    run.exec(f'xdotool windowminimize {window_id}')
+                    system.exec(f'xdotool windowminimize {window_id}')
                 else:
-                    run.exec_async('killall ' + self.program)
+                    system.exec_async('killall ' + self.program)
             else:
                 cmd = f'xdotool windowactivate {window_id}'
-                run.exec(cmd, ignore_output=True)
+                system.exec(cmd, ignore_output=True)
         else:
-            run.exec_async(f'nohup {self.program} &')
+            system.exec_async(f'nohup {self.program} &')
 
     def _toggle_program_wayland(self):
         gdbus_cmd = 'gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval'
         filter_window_cmd = f"global.get_window_actors().map(a=>a.meta_window).filter(w=>w.get_wm_class().toLowerCase() == '{self.program.lower()}')"
         list_window_state_cmd = f"{filter_window_cmd}.map(w=>({{wmclass: w.get_wm_class(), minimized: w.minimized}}))"
 
-        window_info = run.read(f'{gdbus_cmd} "{list_window_state_cmd}"')
+        window_info = system.read(f'{gdbus_cmd} "{list_window_state_cmd}"')
         if '"minimized":' in window_info:
             if '"minimized":false' in window_info:
                 log.debug(f'{self.program} is running and maximized: {window_info}')
                 if self.minimize_not_kill:
                     min_cmd = f'{filter_window_cmd}.forEach(w=>w.minimize())'
-                    run.exec(f'{gdbus_cmd} "{min_cmd}"', ignore_output=True)
+                    system.exec(f'{gdbus_cmd} "{min_cmd}"', ignore_output=True)
                 else:
-                    run.exec_async('killall ' + self.program)
+                    system.exec_async('killall ' + self.program)
             else:
                 log.debug(f'{self.program} is running and minimized: {window_info}')
                 max_cmd = filter_window_cmd + \
                     '.forEach(w=>{w.unminimize(); w.focus(0); w.make_above()})'
-                run.exec(f'{gdbus_cmd} "{max_cmd}"', ignore_output=True)
+                system.exec(f'{gdbus_cmd} "{max_cmd}"', ignore_output=True)
         else:
             log.debug(f'{self.program} has no window: {window_info}')
-            run.exec_async(f'{self.program} &')
+            system.exec_async(f'{self.program} &')
 
 
 class DoubleTapController(KeyController):

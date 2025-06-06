@@ -56,12 +56,17 @@ def pstr(obj: object, maxlen: int = 10, maxdepth: int = 3,
                 istr = primstr
             elif dict_tuples:
                 assert isinstance(i, tuple) and len(i) == 2  # type: ignore
-                istr = __str(i[0], depth + 1) + ': ' + __str(i[1], depth + 1)
+                key = primitive_str(i[0])
+                if not key:
+                    key = __COLOR_END + __str(i[0], depth + 1) + color if color else __str(i[0], depth + 1)
+                value = primitive_str(i[1])
+                if not value:
+                    value = __COLOR_END + __str(i[1], depth + 1) + color if color else __str(i[1], depth + 1)
+                istr = key + ': ' + value
             else:
+                istr = __str(i, depth + 1)
                 if color:
-                    istr = __COLOR_END + __str(i, depth + 1) + color
-                else:
-                    istr = __str(i, depth + 1)
+                    istr = __COLOR_END + istr + color
 
             printed_inners.append(istr)
         return printed_inners
@@ -93,7 +98,10 @@ def pstr(obj: object, maxlen: int = 10, maxdepth: int = 3,
             items_str = start + items_str + end
             if len(inners) > maxlen + 1:
                 items_str += f'(len={len(inners)})'
-            return color + items_str + __COLOR_END if color else items_str
+            if color:
+                return color + items_str + __COLOR_END
+            else:
+                return items_str
         else:
             return f"{item.__class__.__name__}(...)"
 

@@ -1,5 +1,5 @@
 from typing import Any
-from mods.pstr import pstr, __color, __COLOR_END
+from mods.pstr import pstr, __color, __COLOR_END  # type: ignore
 
 
 def test_pstr_lists():
@@ -64,14 +64,29 @@ def test_pstr_recursive():
 
 
 def test_pstr_colored():
-    x: list[Any] = [{1, 2, tuple(('abcdefghijklm', 'b'))}, {True: 0, False: 0}, {None}]
+    x: list[Any] = [[1, 2, tuple(('abcdefghijklm', 'b'))], {True: 0, False: 0}, {None}]
     assert pstr(x, maxlen=6, colored=True) == \
         __color(0) + '[' + \
-        __COLOR_END + __color(1) + '{1, 2, ' + \
+        __COLOR_END + __color(1) + '[1, 2, ' + \
         __COLOR_END + __color(2) + '(abc(...)klm (len=13), b)' + \
-        __COLOR_END + __color(1) + '}' + \
+        __COLOR_END + __color(1) + ']' + \
         __COLOR_END + __color(0) + ', ' + \
         __COLOR_END + __color(1) + '{True: 0, False: 0}' + \
         __COLOR_END + __color(0) + ', ' + \
         __COLOR_END + __color(1) + '{None}' + \
         __COLOR_END + __color(0) + ']' + __COLOR_END
+
+
+def test_pstr_nested_objects_colored():
+    class Person:
+        def __init__(self, name: str, friend: 'Person'):
+            self.name = name
+            self.friend = friend
+   
+    john = Person('John', Person('Peter', None))
+    assert pstr(john, colored=True) == \
+        __color(0) + '{' + \
+        'name: John, friend: ' + \
+        __COLOR_END + __color(1) + '{' + \
+        'name: Peter, friend: None}' + \
+        __COLOR_END + __color(0) + '}' + __COLOR_END

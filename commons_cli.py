@@ -3,14 +3,15 @@ import sys  # type: ignore  # noqa
 import os  # type: ignore  # noqa
 import time  # type: ignore  # noqa
 import argparse  # type: ignore  # noqa
-import typer
-from typing_extensions import Annotated
+import typer  # type: ignore  # noqa
+from typing_extensions import Annotated  # type: ignore  # noqa
 from pathlib import Path  # type: ignore  # noqa
 from types import TracebackType
 from typing import Type  # type: ignore  # noqa
 from loguru import logger
 from mods import color  # type: ignore  # noqa
 from mods.pstr import pstr  # type: ignore  # noqa
+import mods.system # type: ignore # noqa
 
 
 catch = logger.catch

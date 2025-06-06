@@ -3,9 +3,13 @@ import inspect
 import gc
 import functools
 from itertools import cycle
+from typing import Callable, Sequence, TypeVar
 from mods.color import yellow, cyan, green
 
+
+T = TypeVar('T')
 colors = cycle((yellow, cyan, green))
+
 
 def _strip_function_body(func):
     code = inspect.getsource(func).strip()
@@ -13,6 +17,7 @@ def _strip_function_body(func):
     assert len(codelines) > 1, 'Functions must have at least 2 lines to extract body code'
     assert codelines[0].startswith('def '), "Function definition doesn't seem suitable to convert to inline code."
     return '\n'.join(_remove_indentation(codelines[1:]))
+
 
 def _remove_indentation(lines):
     indentation = ''
@@ -83,7 +88,7 @@ def compare_inline(functions, loops=1, setup=None, enable_gc=False, logfunction=
     Measures the time spent executing the code from the given functions' bodies as they were inline code.
     That ensures there's no overhead time from function calls to interfere on the measurements.
     Parameters:
-        functions: the functions to benchmark.
+        functions: the functions to benchmark. Their signatures (first line) are ignored, and they can't have return statements.
         loops: how many times to repeatedly execute each function body.
         setup: function from which body to run once before executing each function's benchmark.
         enable_gc: if True, garbage collection won't be turned off, and it will affect measurements.
@@ -97,12 +102,17 @@ def compare_inline(functions, loops=1, setup=None, enable_gc=False, logfunction=
     return times
 
 
-def compare(functions, loops=1, setup=None, enable_gc=False, logfunction=print, validate_outputs=True) -> tuple[list[float], list[list]]:
+def compare(functions: Sequence[Callable[[], None]],
+            loops: int = 1,
+            setup: Callable[[], T] | None = None,
+            enable_gc: bool = False,
+            logfunction: Callable[[str], None] = print,
+            validate_outputs: bool = True) -> tuple[list[float], list[list[T]]]:
     """
     Measures the time spent executing the given functions, and asserts their outputs are equal (unless validate_outputs is False).
     If the overhead of function calls shouldn't be measured, consider using `compare_inline`.
     Parameters:
-        functions: the functions to benchmark. Their signatures (first line) are ignored, and they can't have return statements.
+        functions: the functions to benchmark.
         loops: how many times to repeatedly execute each function.
         setup: function to run once before executing each function's benchmark.
         enable_gc: if True, garbage collection won't be turned off, and it will affect measurements.
@@ -117,7 +127,7 @@ def compare(functions, loops=1, setup=None, enable_gc=False, logfunction=print, 
         if not outputs or len(outputs) <= 6:
             return color(str(outputs))
         return f'{color(outputs[:3])}, (...), {color(outputs[-3:])}'
-        
+
     times, all_outputs = [], []
     for function in functions:
         time, outputs = benchmark(function, loops, setup, enable_gc, logfunction)

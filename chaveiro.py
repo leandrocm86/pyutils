@@ -1,8 +1,9 @@
+import os
+import getpass
 import platform
 import hashlib
 from cryptography.fernet import Fernet
 import base64
-import os
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
@@ -93,9 +94,11 @@ def generate_system_key():
         platform.machine(),
         platform.node(),
         platform.processor(),
+        os.getlogin(),
+        getpass.getuser(),
         get_hardware_id()
     ]
-
+    
     # print('System info:', system_info)
     # Create a consistent string from system info
     system_string = "|".join(system_info)

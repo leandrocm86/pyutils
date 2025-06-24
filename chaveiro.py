@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
 
-def _load_aes_key(key_path):
+def _load_aes_key(key_path: str):
     """Loads a Base64 encoded AES key from a file."""
     try:
         with open(key_path, 'r') as f:
@@ -23,7 +23,7 @@ def _load_aes_key(key_path):
         raise ValueError(f"Invalid key file: {e}")
 
 
-def encrypt_aes(plaintext, key_path):
+def encrypt_aes(plaintext: str, key_path: str) -> str:
     '''
     Encrypts plaintext using AES-256-GCM.
     OBS: Nao eh compativel com openssl. Um texto encriptado com essa funcao deve ser desencriptado com a funcao decrypt_aes.
@@ -36,7 +36,7 @@ def encrypt_aes(plaintext, key_path):
     return base64.b64encode(nonce + encryptor.tag + ciphertext).decode('utf-8')
 
 
-def decrypt_aes(ciphertext, key_path):
+def decrypt_aes(ciphertext: str, key_path: str) -> str:
     '''
     Decrypts ciphertext using AES-256-GCM.
     OBS: Nao eh compativel com openssl. Esta funcao soh pode descriptografar textos encriptados com a funcao encrypt_aes.
@@ -98,7 +98,7 @@ def generate_system_key():
         getpass.getuser(),
         get_hardware_id()
     ]
-    
+
     # print('System info:', system_info)
     # Create a consistent string from system info
     system_string = "|".join(system_info)
@@ -145,4 +145,3 @@ def decrypt_from_tempfile(filepath: str) -> str:
             return decrypt(f.read())
     finally:
         os.remove(filepath)
-    

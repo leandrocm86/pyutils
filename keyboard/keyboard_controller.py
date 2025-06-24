@@ -139,7 +139,10 @@ class ToggleProgramAction(ActionExecutor):
             self._toggle_program_x11()
 
     def _toggle_program_x11(self):
-        window_id = system.read(f'xdotool search --onlyvisible --classname {self.program}', check=False)
+        # window_id = system.read(f'xdotool search --onlyvisible --classname {self.program}', check=False)
+        # PS: O parametro --onlyvisible era necessario no Gnome, mas por alguma razao nao funcionou no KDE.
+        window_id = system.read(f'xdotool search --classname {self.program}', check=False)
+        assert 'xdotool: not found' not in window_id, 'xdotool not installed!'
         if window_id:
             if len(window_id.splitlines()) > 1:
                 log.debug(f'Found multiple windows for {self.program}. Will pick the last one: {window_id}')

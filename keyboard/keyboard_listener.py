@@ -5,13 +5,13 @@ import evdev  # pip install evdev (parece ser linux-only)
 from .. import log
 from .keyboard_controller import KeyController, EventResult
 from .keyboard_robot import KeyboardRobot
-from .keyboard_events import KeyboardEvent
+from .keyboard_events import KeyboardEvent 
 
 
 def _find_keyboard_device(device_path: str, device_name: str) -> evdev.InputDevice:
     """Tries to find the keyboard device with the given path and/or name.
     If neither path or name are given, it tries to find the only keyboard device available, raising an error if it can't.
-    IMPORTANT: It may be needed to add the system user to the input group (ex: sudo usermod -aG input username).
+    IMPORTANT: It may be needed to add the system user to the input group. Details on keyboard_robot.
     """
     devices_str: list[str] = evdev.list_devices()  # type: ignore
     devices: list[evdev.InputDevice] = [evdev.InputDevice(path) for path in devices_str]

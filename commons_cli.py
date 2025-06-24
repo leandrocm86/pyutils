@@ -3,8 +3,6 @@ import sys  # type: ignore  # noqa
 import os  # type: ignore  # noqa
 import time  # type: ignore  # noqa
 import argparse  # type: ignore  # noqa
-import typer  # type: ignore  # noqa
-from typing_extensions import Annotated  # type: ignore  # noqa
 from pathlib import Path  # type: ignore  # noqa
 from types import TracebackType
 from typing import Type  # type: ignore  # noqa

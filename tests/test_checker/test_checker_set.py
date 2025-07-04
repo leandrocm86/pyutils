@@ -1,6 +1,5 @@
 from collections.abc import Set
 import pytest
-from typeguard import TypeCheckError
 import mods.checker as ck
 
 
@@ -11,15 +10,15 @@ def test_iscoll_valid():
 
 
 def test_iscoll_invalid_type():
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.setok([1, 2, 3], int)  # type: ignore
 
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.setok('hello', str)  # type: ignore
 
 
 def test_iscoll_invalid_element_type():
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.setok({1, 2, 3}, str)  # type: ignore
 
 

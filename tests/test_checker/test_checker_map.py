@@ -3,7 +3,6 @@
 from collections.abc import Mapping
 from typing import Optional
 import pytest
-from typeguard import TypeCheckError
 import mods.checker as ck
 
 
@@ -18,27 +17,27 @@ def test_ismap_valid():
 
 
 def test_ismap_invalid_type():
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.mapok('123', str, int)  # type: ignore
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.mapok({'a', 'b', 'c'}, str, int)  # type: ignore
 
 
 def test_ismap_invalid_key_type():
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.mapok({'2': [2], 'a': [1], None: []}, str, list[int])
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.mapok({'a': '1', None: '2'}, str, str)
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.mapok({None: 1, 'b': 2}, str, int)
 
 
 def test_ismap_invalid_value_type():
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.mapok({'a': 'hello', 'b': 2}, str, int)
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.mapok({'a': None, 'b': 2}, str, int)
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.mapok({'a': 1, 'b': None}, str, int)
 
 

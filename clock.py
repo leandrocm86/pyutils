@@ -7,9 +7,7 @@ class Clock:
 
     clocks_by_name: dict[str, Clock] = {}
 
-    def __init__(self, units: float = 1.0, precision: int = 0, name: str | None = None):
-        self.units = units
-        self.precision = precision
+    def __init__(self, name: str | None = None):
         if name:
             Clock.clocks_by_name[name] = self
         self.last_timestamp = time.time()
@@ -20,9 +18,8 @@ class Clock:
         penultimate_timestamp = self.last_timestamp
         self.last_timestamp = time.time()
         diff = self.last_timestamp - penultimate_timestamp
-        ajusted_diff = round(diff * self.units, self.precision)
-        self.total_time += ajusted_diff
-        return ajusted_diff
+        self.total_time += diff
+        return diff
 
     def restart(self):
         ''' Restarts the counting for the next check. It doesn't erase the accumulated total time. '''
@@ -30,6 +27,4 @@ class Clock:
 
     @classmethod
     def get(cls, clock_name: str) -> Clock:
-        if not cls.clocks_by_name.get(clock_name):
-            cls.clocks_by_name[clock_name] = Clock()
-        return cls.clocks_by_name[clock_name]
+        return cls.clocks_by_name.setdefault(clock_name, Clock())

@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Union
 import pytest
-from typeguard import TypeCheckError
 import mods.checker as ck
 
 
@@ -23,18 +22,18 @@ def test_iscoll_valid():
 
 
 def test_iscoll_invalid_type():
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.seqok(123, int)  # type: ignore
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.seqok({1, 2, 3}, int)  # type: ignore
 
 
 def test_iscoll_invalid_element_type():
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.seqok(['1', '2', '3'], int)
-        with pytest.raises(TypeCheckError):
+        with pytest.raises(TypeError):
             ck.seqok([None], str)
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         obj = SimpleNamespace(name='John', age=30)
         ck.seqok([obj], Person)
 

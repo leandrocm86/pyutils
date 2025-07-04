@@ -1,10 +1,11 @@
-from collections.abc import Collection, Iterable, Mapping as Map, Sequence as Seq, Set
+from collections.abc import Iterable, Mapping as Map, Sequence as Seq, Set
 from pathlib import Path
-from typing import Any, Callable, Optional, Type, TypeVar, Union
-from typeguard import CollectionCheckStrategy, check_type
+from typing import get_origin, get_args, Any, Callable, Optional, Type, TypeVar, Union, Tuple
+import typing
 from re import Pattern, compile
 from mods.pstr import pstr
 import os
+import sys
 
 
 T = TypeVar('T')
@@ -21,12 +22,155 @@ def _error(msg: str):
     raise InvalidContractError(msg)
 
 
-def _check_collection_type(value: Collection[Any], typ: Type[T]):
-    if value and hasattr(value, '__len__') and len(value) > 100:
-        strategy = CollectionCheckStrategy.FIRST_ITEM
+def check_type(value: Any, expected_type: Any, max_checks: int = 100) -> None:
+    """
+    Validate that a value matches the expected type at runtime.
+
+    Supports both regular types and generic type annotations.
+    For collections, checks only up to the first 100 elements.
+
+    Args:
+        value: The value to check
+        expected_type: The expected type or generic type annotation
+        max_checks: Maximum number of elements to check in collections (default is 100)
+
+    Raises:
+        TypeError: If the value doesn't match the expected type
+    """
+    # Handle None/NoneType specially
+    if expected_type is type(None) or expected_type is None:
+        if value is not None:
+            raise TypeError(f"Expected None, got {type(value).__name__}")
+        return
+
+    # Handle Union types (including Optional and | syntax)
+    origin = get_origin(expected_type)
+    if _is_union_type(expected_type, origin):
+        args = get_args(expected_type)
+        for arg in args:
+            try:
+                check_type(value, arg)
+                return  # If any type matches, we're good
+            except TypeError:
+                continue
+        # If none matched, raise error
+        type_names = [_get_type_name(arg) for arg in args]
+        raise TypeError(f"Expected one of {type_names}, got {type(value).__name__}")
+
+    # Handle Literal types first (before checking origin)
+    if _is_literal_type(expected_type):
+        args = get_args(expected_type)
+        if value not in args:
+            raise TypeError(f"Expected one of {args}, got {repr(value)}")
+        return
+
+    # Handle generic types
+    if origin is not None:
+        # Check the base type first
+        if not isinstance(value, origin):
+            raise TypeError(f"Expected {_get_type_name(expected_type)}, got {type(value).__name__}")
+
+        # Check generic arguments
+        args = get_args(expected_type)
+        if args:
+            _check_generic_args(value, origin, args, max_checks)
     else:
-        strategy = CollectionCheckStrategy.ALL_ITEMS
-    check_type(value, typ, collection_check_strategy=strategy)
+        # Handle regular types
+        if not isinstance(value, expected_type):
+            raise TypeError(f"Expected {_get_type_name(expected_type)}, got {type(value).__name__}")
+
+
+def _is_literal_type(type_obj: Any) -> bool:
+    """Check if a type is a Literal type."""
+    try:
+        from typing import Literal
+        # Check if it's a Literal type
+        origin = get_origin(type_obj)
+        return origin is Literal
+    except ImportError:
+        # Literal not available in older Python versions
+        return False
+
+
+def _is_union_type(type_obj: Any, origin: Any) -> bool:
+    """Check if a type is a Union type (including | syntax)."""
+    if origin is Union:
+        return True
+    if sys.version_info >= (3, 10):  # Handle Python 3.10+ | syntax
+        import types  # In Python 3.10+, A | B creates a types.UnionType
+        if isinstance(type_obj, types.UnionType):
+            return True
+    return False
+
+
+def _check_generic_args(value: Any, origin: type, args: tuple[Any, ...], max_checks: int) -> None:
+    """Check generic type arguments for collections."""
+
+    if origin in (list, set, frozenset, Seq, Set):
+        # For homogeneous collections, check element type
+        if len(args) == 1:
+            element_type = args[0]
+            items = list(value)[:max_checks] if hasattr(value, '__iter__') else []
+            for i, item in enumerate(items):
+                try:
+                    check_type(item, element_type, max_checks=max_checks)
+                except TypeError as e:
+                    raise TypeError(f"Element at index {i}: {e}")
+
+    elif origin in (tuple, Tuple):
+        # Handle tuple types specially
+        if len(args) == 2 and args[1] is ...:
+            # tuple[int, ...] - homogeneous tuple of any length
+            element_type = args[0]
+            # Check up to first 100 elements
+            items = list(value)[:100]
+            for i, item in enumerate(items):
+                try:
+                    check_type(item, element_type, max_checks=max_checks)
+                except TypeError as e:
+                    raise TypeError(f"Element at index {i}: {e}")
+        else:
+            # tuple[int, str, bool] - fixed-length tuple with specific types
+            if len(value) != len(args):
+                raise TypeError(f"Expected tuple of length {len(args)}, got length {len(value)}")
+            for i, (item, expected_type) in enumerate(zip(value, args)):
+                try:
+                    check_type(item, expected_type, max_checks=max_checks)
+                except TypeError as e:
+                    raise TypeError(f"Element at index {i}: {e}")
+
+    elif origin in (dict, Map):
+        # For dictionaries, check key and value types
+        if len(args) == 2:
+            key_type, value_type = args
+            items = list(value.items())[:max_checks]
+            for key, val in items:
+                try:
+                    check_type(key, key_type, max_checks=max_checks)
+                except TypeError as e:
+                    raise TypeError(f"Dictionary key {repr(key)}: {e}")
+                try:
+                    check_type(val, value_type, max_checks=max_checks)
+                except TypeError as e:
+                    raise TypeError(f"Dictionary value for key {repr(key)}: {e}")
+
+    elif hasattr(typing, 'Literal') and origin is typing.Literal:
+        # Handle Literal types (Python 3.8+)
+        if value not in args:
+            raise TypeError(f"Expected one of {args}, got {repr(value)}")
+
+    # Add more generic type handlers as needed
+    # For now, other generic types will just check the base type
+
+
+def _get_type_name(type_obj: Any) -> str:
+    """Get a readable name for a type annotation."""
+    if hasattr(type_obj, '__name__'):
+        return type_obj.__name__
+    elif hasattr(type_obj, '_name') and type_obj._name:
+        return type_obj._name
+    else:
+        return str(type_obj)
 
 
 def _handle_custom_validation(value: T, custom: Optional[Callable[[T], bool]]):
@@ -136,7 +280,7 @@ def seqok(value: Seq[T],
           maxelem: Optional[T] = None,
           custom: Optional[Callable[[Seq[T]], bool]] = None):
 
-    _check_collection_type(value, Seq[elemtype])
+    check_type(value, Seq[elemtype])
 
     if length is not None and len(value) != length:
         _error(f'Invalid sequence: expected length {length}, got {len(value)}.')
@@ -176,7 +320,7 @@ def setok(value: Set[T],
           maxelem: Optional[T] = None,
           custom: Optional[Callable[[Set[T]], bool]] = None):
 
-    _check_collection_type(value, Set[elemtype])
+    check_type(value, Set[elemtype])
 
     if length is not None and len(value) != length:
         _error(f'Invalid set: expected length {length}, got {len(value)}.')
@@ -216,7 +360,7 @@ def mapok(value: Map[K, V],
           maxkey: Optional[K] = None,
           custom: Optional[Callable[[Map[K, V]], bool]] = None):
 
-    _check_collection_type(value, Map[keytype, valtype])
+    check_type(value, Map[keytype, valtype])
 
     if length is not None and len(value) != length:
         _error(f'Invalid map: expected length {length}, got {len(value)}.')
@@ -331,8 +475,11 @@ def pathok(value: Path,
     if match and not value.match(match):
         _error(f'Invalid path: expected match {match}, got {value}.')
 
-    if full_match and not value.full_match(full_match):
-        _error(f'Invalid path: expected full match {full_match}, got {value}.')
+    if full_match:
+        if not hasattr(value, 'full_match'):
+            _error('Path does not support full_match method. Check your Python version.')
+        elif value.full_match(full_match):  # type: ignore
+            _error(f'Invalid path: expected full match {full_match}, got {value}.')
 
     _handle_custom_validation(value, custom)
 

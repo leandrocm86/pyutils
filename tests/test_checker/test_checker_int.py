@@ -1,5 +1,4 @@
 import pytest
-from typeguard import TypeCheckError
 from mods.checker import intok, InvalidContractError
 
 
@@ -10,7 +9,7 @@ def test_isint_valid():
 
 
 def test_isint_invalid_type():
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         intok("hello")  # type: ignore
 
 

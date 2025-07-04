@@ -1,6 +1,6 @@
 import pytest
+import sys
 from pathlib import Path
-from typeguard import TypeCheckError
 
 from mods.checker import pathok, InvalidContractError
 
@@ -26,7 +26,7 @@ class TestPathOk:
     def test_type_checking(self):
         """Test that the function correctly validates the input type"""
 
-        with pytest.raises(TypeCheckError):
+        with pytest.raises(TypeError):
             pathok('/nfs/scripts/')  # type: ignore
 
     def test_exists_check(self):
@@ -155,6 +155,7 @@ class TestPathOk:
         with pytest.raises(InvalidContractError, match="Invalid path: expected match"):
             pathok(WRX_DIR_WRX_FILE, match="*.jpg")
 
+    @pytest.mark.skipif(sys.version_info < (3, 13), reason="Requires Python >= 3.13")
     def test_full_match(self):
         """Test checking if a path fully matches a pattern"""
 

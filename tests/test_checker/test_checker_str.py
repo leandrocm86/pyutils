@@ -1,5 +1,4 @@
 import pytest
-from typeguard import TypeCheckError
 import mods.checker as ck
 
 
@@ -10,7 +9,7 @@ def test_checker_str_valid():
 
 def test_checker_str_invalid_type():
     # Test with an invalid type
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         ck.strok(5)  # type: ignore
 
 

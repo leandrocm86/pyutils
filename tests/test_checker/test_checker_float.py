@@ -1,5 +1,4 @@
 import pytest
-from typeguard import TypeCheckError
 from mods.checker import floatok, InvalidContractError
 
 
@@ -10,7 +9,7 @@ def test_isfloat_valid():
 
 
 def test_isfloat_invalid_type():
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(TypeError):
         floatok("hello")  # type: ignore
 
 

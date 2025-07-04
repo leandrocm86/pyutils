@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Mapping as Map, Sequence as Seq, Set
+from collections.abc import Collection, Iterable, Mapping as Map, Sequence as Seq, Set
 from pathlib import Path
 from typing import get_origin, get_args, Any, Callable, Optional, Type, TypeVar, Union, Tuple
 import typing
@@ -11,6 +11,7 @@ import sys
 T = TypeVar('T')
 K = TypeVar('K')
 V = TypeVar('V')
+C = TypeVar('C', bound=Collection[Any])
 
 
 class InvalidContractError(Exception):
@@ -73,7 +74,7 @@ def check_type(value: Any, expected_type: Any, max_checks: int = 100) -> None:
         # Check generic arguments
         args = get_args(expected_type)
         if args:
-            _check_generic_args(value, origin, args, max_checks)
+            __check_generic_args(value, origin, args, max_checks)
     else:
         # Handle regular types
         if not isinstance(value, expected_type):
@@ -103,7 +104,7 @@ def _is_union_type(type_obj: Any, origin: Any) -> bool:
     return False
 
 
-def _check_generic_args(value: Any, origin: type, args: tuple[Any, ...], max_checks: int) -> None:
+def __check_generic_args(value: Any, origin: type, args: tuple[Any, ...], max_checks: int) -> None:
     """Check generic type arguments for collections."""
 
     if origin in (list, set, frozenset, Seq, Set):
@@ -173,7 +174,7 @@ def _get_type_name(type_obj: Any) -> str:
         return str(type_obj)
 
 
-def _handle_custom_validation(value: T, custom: Optional[Callable[[T], bool]]):
+def __handle_custom_validation(value: T, custom: Optional[Callable[[T], bool]]):
     if custom:
         try:
             if not custom(value):
@@ -182,19 +183,18 @@ def _handle_custom_validation(value: T, custom: Optional[Callable[[T], bool]]):
             _error(f'Error when trying custom validation for {pstr(value)} of type {type(value)}: {e}')
 
 
-def strok(value: str,
-          length: Optional[int] = None,
-          minlen: int = 0,
-          maxlen: Optional[int] = None,
-          upper: bool = False,
-          lower: bool = False,
-          regex: Union[str, Pattern[str], None] = None,
-          domain: Optional[Iterable[str]] = None,
-          custom: Optional[Callable[[str], bool]] = None):
-
+def valstr(value: str,
+           length: Optional[int] = None,
+           minlen: int = 0,
+           maxlen: Optional[int] = None,
+           upper: bool = False,
+           lower: bool = False,
+           regex: Union[str, Pattern[str], None] = None,
+           domain: Optional[Iterable[str]] = None,
+           custom: Optional[Callable[[str], bool]] = None) -> str:
     """ Runtime validation for strings.
     Checks type and optionally given constraints, possibly raising
-    typeguard.TypeCheckError and InvalidContractError, respectively.
+    TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
     """
 
     check_type(value, str)
@@ -223,14 +223,20 @@ def strok(value: str,
     if domain and value not in domain:
         _error(f'Invalid str: expected domain {pstr(domain, maxlen=50)} doesn\'t contain value "{pstr(value, maxlen=50)}".')
 
-    _handle_custom_validation(value, custom)
+    __handle_custom_validation(value, custom)
+
+    return value
 
 
-def intok(value: int,
-          min: Optional[int] = None,
-          max: Optional[int] = None,
-          domain: Optional[Iterable[int]] = None,
-          custom: Optional[Callable[[int], bool]] = None):
+def valint(value: int,
+           min: Optional[int] = None,
+           max: Optional[int] = None,
+           domain: Optional[Iterable[int]] = None,
+           custom: Optional[Callable[[int], bool]] = None) -> int:
+    """ Runtime validation for integers.
+    Checks type and optionally given constraints, possibly raising
+    TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
+    """
 
     check_type(value, int)
 
@@ -243,14 +249,20 @@ def intok(value: int,
     if domain and value not in domain:
         _error(f'Invalid int: expected domain {pstr(domain, maxlen=50)} doesn\'t contain value {value}.')
 
-    _handle_custom_validation(value, custom)
+    __handle_custom_validation(value, custom)
+
+    return value
 
 
-def floatok(value: float,
-            min: Optional[float] = None,
-            max: Optional[float] = None,
-            domain: Optional[Iterable[float]] = None,
-            custom: Optional[Callable[[float], bool]] = None):
+def valfloat(value: float,
+             min: Optional[float] = None,
+             max: Optional[float] = None,
+             domain: Optional[Iterable[float]] = None,
+             custom: Optional[Callable[[float], bool]] = None) -> float:
+    """ Runtime validation for floats.
+    Checks type and optionally given constraints, possibly raising
+    TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
+    """
 
     check_type(value, float)
 
@@ -263,24 +275,23 @@ def floatok(value: float,
     if domain and value not in domain:
         _error(f'Invalid float: expected domain {pstr(domain, maxlen=50)} doesn\'t contain value {value}.')
 
-    _handle_custom_validation(value, custom)
+    __handle_custom_validation(value, custom)
+
+    return value
 
 
-def boolok(value: bool):
+def valbool(value: bool) -> bool:
     check_type(value, bool)
+    return value
 
 
-# Embora Collection sirva tanto para seqs quanto sets, ela nao functiona bem com check_type.
-def seqok(value: Seq[T],
-          elemtype: Type[T],
-          length: Optional[int] = None,
-          minlen: int = 0,
-          maxlen: Optional[int] = None,
-          minelem: Optional[T] = None,
-          maxelem: Optional[T] = None,
-          custom: Optional[Callable[[Seq[T]], bool]] = None):
-
-    check_type(value, Seq[elemtype])
+def __collectionok(value: C,
+                   length: Optional[int] = None,
+                   minlen: int = 0,
+                   maxlen: Optional[int] = None,
+                   minelem: Optional[T] = None,
+                   maxelem: Optional[T] = None,
+                   custom: Optional[Callable[[C], bool]] = None):
 
     if length is not None and len(value) != length:
         _error(f'Invalid sequence: expected length {length}, got {len(value)}.')
@@ -294,71 +305,79 @@ def seqok(value: Seq[T],
     if minelem and value:
         if not hasattr(minelem, '__lt__'):
             _error(f'Impossible validation: the minimum element\'s type is not comparable: {type(minelem)}.')
-        elif not isinstance(minelem, elemtype):
-            _error(f'Impossible validation of minimum element: expected minimum element of type {elemtype}, got {type(minelem)}.')
-        elif (minv := min(value)) < minelem:  # type: ignore
-            _error(f'Invalid sequence: expected minimum element {pstr(minelem)}, got {pstr(minv)}.')  # type: ignore
+        else:
+            minv = min(value)
+            if not isinstance(minv, type(minelem)):
+                _error(f'Impossible validation of minimum element: expected minimum element of type {type(minelem)}, got {type(minv)}.')
+            elif minv < minelem:  # type: ignore
+                _error(f'Invalid sequence: expected minimum element {pstr(minelem)}, got {pstr(minv)}.')  # type: ignore
 
     if maxelem and value:
         if not hasattr(maxelem, '__lt__'):
             _error(f'Impossible validation: the maximum element\'s type is not comparable: {type(maxelem)}.')
-        elif not isinstance(maxelem, elemtype):
-            _error(f'Impossible validation of maximum element: expected maximum element of type {elemtype}, got {type(maxelem)}.')
-        elif (maxv := max(value)) > maxelem:  # type: ignore
-            _error(f'Invalid sequence: expected maximum element {pstr(maxelem)}, got {pstr(maxv)}.')  # type: ignore
+        else:
+            maxv = max(value)
+            if not isinstance(maxv, type(maxelem)):
+                _error(f'Impossible validation of maximum element: expected maximum element of type {type(maxelem)}, got {type(maxv)}.')
+            elif maxv > maxelem:  # type: ignore
+                _error(f'Invalid sequence: expected maximum element {pstr(maxelem)}, got {pstr(maxv)}.')  # type: ignore
 
-    _handle_custom_validation(value, custom)
+    __handle_custom_validation(value, custom)
 
 
-# Embora Collection sirva tanto para seqs quanto sets, ela nao functiona bem com check_type.
-def setok(value: Set[T],
-          elemtype: Type[T],
-          length: Optional[int] = None,
-          minlen: int = 0,
-          maxlen: Optional[int] = None,
-          minelem: Optional[T] = None,
-          maxelem: Optional[T] = None,
-          custom: Optional[Callable[[Set[T]], bool]] = None):
+def valseq(value: Seq[T],
+           elemtype: Type[T],
+           length: Optional[int] = None,
+           minlen: int = 0,
+           maxlen: Optional[int] = None,
+           minelem: Optional[T] = None,
+           maxelem: Optional[T] = None,
+           custom: Optional[Callable[[Seq[T]], bool]] = None) -> Seq[T]:
+    """ Runtime validation for sequences (lists and tuples).
+    Checks type and optionally given constraints, possibly raising
+    TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
+    """
+
+    check_type(value, Seq[elemtype])
+
+    __collectionok(value, length, minlen, maxlen, minelem, maxelem, custom)
+
+    return value
+
+
+def valset(value: Set[T],
+           elemtype: Type[T],
+           length: Optional[int] = None,
+           minlen: int = 0,
+           maxlen: Optional[int] = None,
+           minelem: Optional[T] = None,
+           maxelem: Optional[T] = None,
+           custom: Optional[Callable[[Set[T]], bool]] = None) -> Set[T]:
+    """ Runtime validation for sets.
+    Checks type and optionally given constraints, possibly raising
+    TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
+    """
 
     check_type(value, Set[elemtype])
 
-    if length is not None and len(value) != length:
-        _error(f'Invalid set: expected length {length}, got {len(value)}.')
+    __collectionok(value, length, minlen, maxlen, minelem, maxelem, custom)
 
-    if minlen and len(value) < minlen:
-        _error(f'Invalid set: expected minimum length {minlen}, got {len(value)}.')
-
-    if maxlen is not None and len(value) > maxlen:
-        _error(f'Invalid set: expected maximum length {maxlen}, got {len(value)}.')
-
-    if minelem and value:
-        if not hasattr(minelem, '__lt__'):
-            _error(f'Impossible validation: the minimum element\'s type is not comparable: {type(minelem)}.')
-        elif not isinstance(minelem, elemtype):
-            _error(f'Impossible validation of minimum element: expected minimum element of type {elemtype}, got {type(minelem)}.')
-        elif (minv := min(value)) < minelem:  # type: ignore
-            _error(f'Invalid set: expected minimum element {pstr(minelem)}, got {pstr(minv)}.')  # type: ignore
-
-    if maxelem and value:
-        if not hasattr(maxelem, '__lt__'):
-            _error(f'Impossible validation: the maximum element\'s type is not comparable: {type(maxelem)}.')
-        elif not isinstance(maxelem, elemtype):
-            _error(f'Impossible validation of maximum element: expected maximum element of type {elemtype}, got {type(maxelem)}.')
-        elif (maxv := max(value)) > maxelem:  # type: ignore
-            _error(f'Invalid set: expected maximum element {pstr(maxelem)}, got {pstr(maxv)}.')  # type: ignore
-
-    _handle_custom_validation(value, custom)
+    return value
 
 
-def mapok(value: Map[K, V],
-          keytype: Type[K],
-          valtype: Type[V],
-          length: Optional[int] = None,
-          minlen: int = 0,
-          maxlen: Optional[int] = None,
-          minkey: Optional[K] = None,
-          maxkey: Optional[K] = None,
-          custom: Optional[Callable[[Map[K, V]], bool]] = None):
+def valmap(value: Map[K, V],
+           keytype: Type[K],
+           valtype: Type[V],
+           length: Optional[int] = None,
+           minlen: int = 0,
+           maxlen: Optional[int] = None,
+           minkey: Optional[K] = None,
+           maxkey: Optional[K] = None,
+           custom: Optional[Callable[[Map[K, V]], bool]] = None) -> Map[K, V]:
+    """ Runtime validation for maps (dictionaries).
+    Checks type and optionally given constraints, possibly raising
+    TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
+    """
 
     check_type(value, Map[keytype, valtype])
 
@@ -387,19 +406,25 @@ def mapok(value: Map[K, V],
         elif (maxv := max(value)) > maxkey:  # type: ignore
             _error(f'Invalid map: expected maximum key {pstr(maxkey)}, got {pstr(maxv)}.')  # type: ignore
 
-    _handle_custom_validation(value, custom)
+    __handle_custom_validation(value, custom)
+
+    return value
 
 
-def pathok(value: Path,
-           exists: Optional[bool] = None,
-           is_dir: Optional[bool] = None,
-           match: Optional[str] = None,
-           full_match: Optional[str] = None,
-           can_read_if_exists: Optional[bool] = None,
-           can_create_if_not_exists: Optional[bool] = None,
-           can_modify_if_exists: Optional[bool] = None,
-           can_execute_if_exists: Optional[bool] = None,
-           custom: Optional[Callable[[Path], bool]] = None):
+def valpath(value: Path,
+            exists: Optional[bool] = None,
+            is_dir: Optional[bool] = None,
+            match: Optional[str] = None,
+            full_match: Optional[str] = None,
+            can_read_if_exists: Optional[bool] = None,
+            can_create_if_not_exists: Optional[bool] = None,
+            can_modify_if_exists: Optional[bool] = None,
+            can_execute_if_exists: Optional[bool] = None,
+            custom: Optional[Callable[[Path], bool]] = None) -> Path:
+    """ Runtime validation for paths.
+    Checks type and optionally given constraints, possibly raising
+    TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
+    """
 
     check_type(value, Path)
 
@@ -481,13 +506,21 @@ def pathok(value: Path,
         elif value.full_match(full_match):  # type: ignore
             _error(f'Invalid path: expected full match {full_match}, got {value}.')
 
-    _handle_custom_validation(value, custom)
+    __handle_custom_validation(value, custom)
+
+    return value
 
 
-def objok(value: T, expected_type: Type[T], custom: Optional[Callable[[T], bool]] = None):
+def valobj(value: T, expected_type: Type[T], custom: Optional[Callable[[T], bool]] = None) -> T:
+    """ Generic runtime validation for objects.
+    Checks type and optionally given constraints, possibly raising
+    TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
+    """
+
     check_type(value, expected_type)
     if custom:
-        _handle_custom_validation(value, custom)
+        __handle_custom_validation(value, custom)
+    return value
 
     # props = {k: v for k, v in vars(value) if not k.startswith('_')}
     # noneprops = {k: v for k, v in props.items() if v is None}

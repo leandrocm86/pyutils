@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod  # type: ignore  # noqa
 from dataclasses import dataclass, field  # type: ignore  # noqa
 from enum import Enum  # type: ignore  # noqa 
 from collections import defaultdict  # type: ignore  # noqa
-import mods.checker  # type: ignore  # noqa
+from mods.type_checker import check_type, valint, valbool, valfloat, valstr, valseq, valset, valmap, valpath, valobj  # type: ignore  # noqa
 from mods.mut import mut  # type: ignore  # noqa
 
 

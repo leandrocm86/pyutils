@@ -1,10 +1,11 @@
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
 from contextlib import suppress
 import functools
 import time
 
 
 _T = TypeVar("_T")
+_E = TypeVar("_E", bound=Exception)
 
 # Expected to be used as a 'with' statement, to suppress any possible exception.
 care = suppress(BaseException)
@@ -20,9 +21,7 @@ def maybe(function: Callable[[], _T]) -> _T | None:
 
 
 def raising(func=None, *, exceptions=(), suppress=False, logfunc=print, trace=True, error_return=None):
-    """ DEPRECATED
-    Deprecated in favor of loguru.logger.catch
-    A decorator that captures exceptions thrown by the decorated function.
+    """ A decorator that captures exceptions thrown by the decorated function.
     It logs the error when it happens, according to logfunc and trace parameters.
 
     :param exceptions: Tuple of exception classes to capture (will capture any if none specified).
@@ -59,17 +58,20 @@ def raising(func=None, *, exceptions=(), suppress=False, logfunc=print, trace=Tr
         return decorator(func)
 
 
-def retry(max_attempts: int, delay: int = 2, exceptions=(Exception,), logfunc: Callable[[str], None] = print):
+def retry(max_attempts: int,
+          delay: int = 2,
+          exceptions: tuple[type[_E], ...] = (Exception,),
+          logfunc: Callable[[str], None] = print):
     """
     Retry decorator that will re-execute a function until none of the given exceptions is raised or the given maximum attempts is reached.
-    
+
     Parameters:
     - max_attempts: Maximum number of attempts. When reached, the exception from the last try will be reraised.
     - delay: Interval between retries in seconds. Defaults to 2.
     - exceptions: Tuple of exceptions to catch and retry on. Defaults to Exception.
     - logfunc: Function to print messages of each retry attempt. Defaults to print. Use None for no logs.
     """
-    def decorator(func):
+    def decorator(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             mtries, mdelay = max_attempts, delay

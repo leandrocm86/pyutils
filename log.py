@@ -1,7 +1,10 @@
+from dataclasses import dataclass
 import logging
 import sys
+from types import FrameType, TracebackType
 from os import environ
 from typing import Any
+from .pstr import pstr
 from .color import green, cyan, yellow, red
 
 LOG_FILENAME = environ.get('LOG_FILE')
@@ -78,3 +81,99 @@ def warn(*args: Any):
 def error(*args: Any, exception: bool = False):
     msg = _concat(*args)
     LOG.error(msg, exc_info=exception, stack_info=exception)
+
+
+@dataclass
+class ExceptionsConfig:
+    max_frames: int = 3
+    colored_print: bool = sys.stdout.isatty()
+    suppress_default_stacktrace: bool = False
+
+
+def __get_source_line(filename: str, line_number: int) -> str:
+    import linecache
+    """Get the source code line using linecache (same as done by traceback module)."""
+    return linecache.getline(filename, line_number).strip()
+
+
+def __print_frame_info(frame: FrameType, line_number: int, frame_number: int, max_frames: int):
+    filename = frame.f_code.co_filename
+    function_name = frame.f_code.co_name
+
+    file_and_line = f"{filename}:{line_number}"
+    if max_frames == frame_number + 1 and '.py:' in file_and_line:
+        file_and_line = f"\033[31m{file_and_line}\033[0m"
+
+    source_line = __get_source_line(filename, line_number)
+
+    print(f"{function_name}() in {file_and_line} => {source_line}")
+
+    locals_dict = frame.f_locals
+    if frame_number == 0:
+        # Em __main__ e repl, ignora o que nao foi usado na linha do erro
+        locals_dict = {name: value for name, value in locals_dict.items() if name in source_line}
+    if locals_dict:
+        name_padding = max(len(name) for name in locals_dict.keys())
+        for name, value in sorted(locals_dict.items()):
+            try:
+                # Use pstr for better formatting of complex objects
+                value_str = pstr(value, colored=ExceptionsConfig.colored_print)
+                # Truncate very long values
+                print(f"  {name:>{name_padding}} = {value_str}")
+            except Exception as e:
+                print(f"  {name:>{name_padding}} = <Error: {e}>")
+    else:
+        print("  (no local variables)")
+
+    print("-" * 60)
+
+    # Show arguments passed to the function
+    # if frame.f_code.co_argcount > 0:
+#         print("\nFunction arguments:")
+#         arg_names = frame.f_code.co_varnames[:frame.f_code.co_argcount]
+#         for arg_name in arg_names:
+#             if arg_name in locals_dict:
+#                 try:
+#                     value_str = pstr(locals_dict[arg_name], colored=ExceptionsConfig.colored_print)
+#                     if len(value_str) > 200:
+#                         value_str = value_str[:200] + "..."
+#                     print(f"  {arg_name:15} = {value_str}")
+#                 except Exception as e:
+#                     print(f"  {arg_name:15} = <Error: {e}>")
+
+
+def _inspect_exception_hook(exc_type: type,
+                            exc_value: BaseException,
+                            exc_traceback: TracebackType):
+    """ Advanced exception handler that prints variables from stack frames """
+
+    MAX_FRAMES: int = ExceptionsConfig.max_frames
+
+    LOG.error(f"UNHANDLED EXCEPTION: {exc_type.__name__}: {exc_value}")
+    print("=" * 80)
+
+    # Print the normal traceback first
+    if not ExceptionsConfig.suppress_default_stacktrace:
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        # traceback.print_exception(exc_type, exc_value, exc_traceback)
+
+    print("=" * 30 + " STACK DETAILS " + "=" * 30)
+
+    # Collect all frames first
+    frames: list[tuple[FrameType, int]] = []
+    tb = exc_traceback
+    while tb is not None:
+        frames.append((tb.tb_frame, tb.tb_lineno))
+        tb = tb.tb_next
+
+    # Limit to last max_frames if specified
+    if len(frames) > MAX_FRAMES:
+        frames = frames[-MAX_FRAMES:]
+        # print(f"(Showing last {MAX_FRAMES} frames out of {len(frames) + (len(frames) - MAX_FRAMES)} total)")
+
+    # Print each frame
+    for frame_number, (frame, line_number) in enumerate(frames):
+        __print_frame_info(frame, line_number, frame_number, min(ExceptionsConfig.max_frames, len(frames)))
+
+
+sys.excepthook = _inspect_exception_hook

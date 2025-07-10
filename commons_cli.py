@@ -6,13 +6,10 @@ import argparse  # type: ignore  # noqa
 from pathlib import Path  # type: ignore  # noqa
 from types import TracebackType
 from typing import Type  # type: ignore  # noqa
-from loguru import logger
+from mods.log import LOG, _inspect_exception_hook  # type: ignore  # noqa
 from mods import color  # type: ignore  # noqa
 from mods.pstr import pstr  # type: ignore  # noqa
 import mods.system # type: ignore # noqa
-
-
-catch = logger.catch
 
 
 def setpostmortem():
@@ -34,15 +31,12 @@ def setpostmortem():
                           exc_value: BaseException,
                           exc_traceback: TracebackType):
 
-        if hasattr(sys, 'ps1') or not sys.stderr.isatty():
-            # We're in interactive mode or don't have a tty-like
-            # device, so call the default hook
-            sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        else:
-            print(f"Exception of type {exc_type.__name__} occurred: {color.red(str(exc_value))}")
-            if input('Enter debug mode? (y/n) : ') in ('y', 'Y'):
-                print("Starting post-mortem debugging session...")
-                pdb.post_mortem(exc_traceback)
+        _inspect_exception_hook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback)
+        print(f"Exception of type {exc_type.__name__} occurred: {color.red(str(exc_value))}")
+        if input('Enter debug mode? (y/n) : ') in ('y', 'Y'):
+            print("Starting post-mortem debugging session...")
+            pdb.post_mortem(exc_traceback)
 
-    # Register the custom exception hook
-    sys.excepthook = exception_handler
+    # Register the custom exception hook, only if we're not in interactive mode
+    if not hasattr(sys, 'ps1') or sys.stderr.isatty():
+        sys.excepthook = exception_handler

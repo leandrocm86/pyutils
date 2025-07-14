@@ -25,13 +25,13 @@ def __color(depth: int) -> str:
 __COLOR_END: str = '\033[0m'
 
 
-def pstr(obj: object, maxlen: int = 10, maxdepth: int = 3,
+def pstr(obj: object, maxlen: int = 20, maxdepth: int = 3,
          colored: bool = sys.stdout.isatty()) -> str:
     """Creates a pretty string representation of an object.
     It respects the given constraints (maxlen and maxdepth) to truncate the output when needed.
     Args:
         obj (object): The object to be represented.
-        maxlen (int, optional): The maximum number of (inner) items to be included in the output, for each object. Defaults to 10.
+        maxlen (int, optional): The maximum number of (inner) items to be included in the output, for each object. Defaults to 20.
         maxdepth (int, optional): The maximum depth of nested objects to be included in the output. Defaults to 3.
         colored (bool, optional): Whether to use colors in the output. Defaults to True if stdout is a terminal.
     Returns:
@@ -44,8 +44,8 @@ def pstr(obj: object, maxlen: int = 10, maxdepth: int = 3,
         if val is None or isinstance(val, (int, float, bool)):
             return str(val)
         elif isinstance(val, str):
-            return val if len(val) < maxlen + 6 \
-                else val[:HALF_INDEX] + '(...)' + val[-HALF_INDEX:] + f' (len={len(val)})'
+            return val if len(val) < maxlen + 11 \
+                else val[:HALF_INDEX] + f'(...len={len(val)})' + val[-HALF_INDEX:]
         return None
 
     def concat_inners(inners: Sequence[Any], dict_tuples: bool,

@@ -37,7 +37,7 @@ def test_pstr_maxlen():
     assert pstr(long_list, maxlen=10) == "[0, 1, 2, 3, 4, ... , 95, 96, 97, 98, 99](len=100)"
     assert pstr(long_list, maxlen=4) == "[0, 1, ... , 98, 99](len=100)"
     long_string = 'abcdefghijklmnopqrstuvwyxz'
-    assert pstr(long_string, maxlen=10) == 'abcde(...)vwyxz (len=26)'
+    assert pstr(long_string, maxlen=10) == 'abcde(...len=26)vwyxz'
 
 
 def test_pstr_maxdepth():
@@ -68,7 +68,7 @@ def test_pstr_colored():
     assert pstr(x, maxlen=6, colored=True) == \
         __color(0) + '[' + \
         __COLOR_END + __color(1) + '[1, 2, ' + \
-        __COLOR_END + __color(2) + '(abc(...)klm (len=13), b)' + \
+        __COLOR_END + __color(2) + '(abcdefghijklm, b)' + \
         __COLOR_END + __color(1) + ']' + \
         __COLOR_END + __color(0) + ', ' + \
         __COLOR_END + __color(1) + '{True: 0, False: 0}' + \

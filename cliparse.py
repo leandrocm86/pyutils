@@ -15,7 +15,7 @@ class BaseArg(Generic[T], ABC):
         *names: str,
         type: Type[T],
         required: Optional[bool] = None,
-        default: Optional[T] | list[T] = None,
+        default: T | Optional[T] | list[T] = None,
         choices: Optional[list[T]] = None,
         validation: Optional[Callable[[T], bool]] = None,
         help: str = "",
@@ -32,12 +32,16 @@ class BaseArg(Generic[T], ABC):
 
         self._parsed_name = max(names, key=len).removeprefix('--').replace('-', '_')
 
+    def _check_value_already_parsed(self):
+        if not hasattr(self, "_parsed_value"):
+            raise ValueError(f"Value for argument '{self._parsed_name}' has not been parsed yet.")
+
 
 class Arg(BaseArg[T]):
-    """ Wraps the definitions for an argparse argument.
+    """ Wraps the definitions for an argparse argument that is required or has a default value.
     An additional "validation" property enables custom validation for each argument.
     Its value gets parsed and validated as soon as the parent CliParser is instantiated.
-    For multi-value arguments, use VarArgs instead.
+    For multi-value arguments, use VarArgs instead. For optional arguments without default value, use OptArg.
     """
 
     def __init__(
@@ -53,18 +57,65 @@ class Arg(BaseArg[T]):
         super().__init__(*names, type=type, required=required, default=default,
                          choices=choices, validation=validation, help=help)
 
+        if required is not True and default is None:
+            raise ValueError("Either 'required' must be True or 'default' must be provided for Arg. Otherwise, use OptArg.")
+
+        if required is True and default is not None:
+            raise ValueError("If 'required' is True, 'default' should not be provided for Arg.")
+
+        if type is bool:
+            raise ValueError("Arg cannot be used with type bool. Use FlagArg for boolean flags instead.")
+
     @property
     def value(self) -> T:
-        if hasattr(self, "_parsed_value"):
-            return self._parsed_value  # type: ignore
-        raise Exception('Argument value not parsed yet')
+        super()._check_value_already_parsed()
+        return self._parsed_value  # type: ignore
+
+
+class OptArg(BaseArg[T]):
+    """ Wraps the definitions for an argparse argument that is not required nor has a default value.
+    An additional "validation" property enables custom validation for each argument, when exists.
+    Its value gets parsed and validated as soon as the parent CliParser is instantiated, when there is a value.
+    For multi-value arguments, use VarArgs instead. For required arguments or with default value, use Arg.
+    """
+
+    def __init__(
+        self,
+        *names: str,
+        type: Type[T],
+        choices: Optional[list[T]] = None,
+        validation: Optional[Callable[[T], bool]] = None,
+        help: str = "",
+    ):
+        super().__init__(*names, type=type, required=False, default=None, choices=choices, validation=validation, help=help)
+        if type is bool:
+            raise ValueError("OptArg cannot be used with type bool. Use FlagArg for boolean flags instead.")
+
+    @property
+    def value(self) -> Optional[T]:
+        super()._check_value_already_parsed()
+        return self._parsed_value  # type: ignore
+
+
+class FlagArg(BaseArg[bool]):
+    """ Wraps the definitions for an argparse argument that is a boolean flag.
+    It does not require a value, and its presence indicates True, while its absence indicates False.
+    """
+
+    def __init__(self, *names: str, help: str = ""):
+        super().__init__(*names, type=bool, required=False, default=False, help=help)
+
+    @property
+    def value(self) -> bool:
+        super()._check_value_already_parsed()
+        return self._parsed_value  # type: ignore
 
 
 class VarArgs(BaseArg[T]):
     """ Wraps the definitions for an argparse argument that is multi-value.
     An additional "validation" property enables custom validation for each argument.
     Its values get parsed and validated as soon as the parent CliParser is instantiated.
-    For single-value arguments, use Arg instead.
+    For single-value arguments, use Arg, OptArg or FlagArg instead.
     """
 
     def __init__(
@@ -83,10 +134,9 @@ class VarArgs(BaseArg[T]):
         self._nargs = nargs
 
     @property
-    def values(self) -> tuple[T]:
-        if hasattr(self, "_parsed_value"):
-            return tuple(self._parsed_value)  # type: ignore
-        raise Exception('Argument value not parsed yet')
+    def values(self) -> tuple[T, ...]:
+        super()._check_value_already_parsed()
+        return tuple(self._parsed_value)  # type: ignore
 
 
 class CliParser:
@@ -120,7 +170,7 @@ class CliParser:
                 if att._required is not None:
                     params['required'] = att._required
 
-                if att._type == bool or att._type == Optional[bool]:
+                if isinstance(att, FlagArg):
                     params['action'] = 'store_true'
                 else:
                     params['type'] = att._type
@@ -135,8 +185,8 @@ class CliParser:
         for att in attrs:
             if isinstance(att, BaseArg):
                 parsed_value = args.__dict__[att._parsed_name]
-                if parsed_value is None and att._type is bool:
-                    parsed_value = False
+                # if parsed_value is None and att._type is bool:
+                #     parsed_value = False
                 if att._validation:
                     try:
                         valid_input = att._validation(parsed_value)
@@ -160,14 +210,13 @@ class CliParser:
 if __name__ == "__main__":
 
     class MyCLI(CliParser):
-        host = Arg("--host", type=str, help='Host server')
+        host = Arg("--host", required=True, type=str, help='Host server')
         port = Arg("-p", "--port", type=int, default=0, help='Connection port')
+        email = OptArg("--email", type=str, help='Email address')
         paths = VarArgs("input_files", type=Path,
                         nargs="+", default=[Path('.')], help='Files to process')
-        print_colored = Arg("--print-colored", type=bool,
-                            default=False, help='Display colors [default: false]')
-        print_black = Arg("--print-black", type=bool,
-                          default=False, help='Black&White')
+        print_colored = FlagArg("--print-colored", help='Display colors [default: false]')
+        print_black = FlagArg("--print-black", help='Black&White')
 
         def __init__(self):
             super().__init__(description="This is an example of app using ParserCLI")
@@ -179,7 +228,8 @@ if __name__ == "__main__":
     args = MyCLI()
     host = args.host.value
     port = args.port.value
+    email = args.email.value
     paths = args.paths.values
     print_colored = args.print_colored.value
     print_black = args.print_black.value
-    print(f'host: {host}, port: {port}, paths: {paths}, print_colored: {print_colored}, print_black: {print_black}')
+    print(f'host: {host}, port: {port}, email: {email}, paths: {paths}, print_colored: {print_colored}, print_black: {print_black}')

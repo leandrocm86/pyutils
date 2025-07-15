@@ -1,14 +1,18 @@
 # tests/test_cliparse.py
 from __future__ import annotations
 import pytest
-from mods.cliparse import CliParser, Arg, VarArgs
+from mods.cliparse import CliParser, Arg, FlagArg, OptArg, VarArgs
 import sys
 
 
 class TestCliParser:
-    def test_simple_cli(self):
+    def test_optional_arg(self):
         class MyCLI(CliParser):
-            foo = Arg("--foo", type=str, help="Foo value")
+            foo = OptArg("--foo", type=str, help="Foo value")
+
+        sys.argv = ["myapp"]
+        cli = MyCLI()
+        assert cli.foo.value is None
 
         sys.argv = ["myapp", "--foo", "bar"]
         cli = MyCLI()
@@ -30,9 +34,13 @@ class TestCliParser:
         cli = MyCLI()
         assert cli.foo.value == "baz"
 
+    def test_invalid_optional_arg(self):
+        with pytest.raises(ValueError):
+            foo = Arg("--foo", type=int, help="Foo value")  # noqa  # type: ignore  # NOSONAR
+
     def test_choices(self):
         class MyCLI(CliParser):
-            foo = Arg("--foo", type=str, choices=["bar", "baz"], help="Foo value")
+            foo = Arg("--foo", required=True, type=str, choices=["bar", "baz"], help="Foo value")
 
         sys.argv = ["myapp", "--foo", "bar"]
         cli = MyCLI()
@@ -60,8 +68,8 @@ class TestCliParser:
                 assert bar != "foo", 'Bar cant be foo'
                 return True
 
-            foo = Arg("--foo", type=int, validation=lambda x: x > 0)
-            bar = Arg("--bar", type=str, validation=lambda x: MyCLI.validate_bar(x))
+            foo = Arg("--foo", required=True, type=int, validation=lambda x: x > 0)
+            bar = Arg("--bar", required=True, type=str, validation=lambda x: MyCLI.validate_bar(x))
 
         sys.argv = ["myapp", "--foo", "-1"]
         with pytest.raises(SystemExit):
@@ -73,8 +81,8 @@ class TestCliParser:
 
     def test_post_validate(self):
         class MyCLI(CliParser):
-            foo = Arg("--foo", type=str, help="Foo value")
-            bar = Arg("--bar", type=str, help="Bar value")
+            foo = Arg("--foo", required=True, type=str, help="Foo value")
+            bar = Arg("--bar", required=True, type=str, help="Bar value")
 
             def _post_validate(self):
                 assert self.foo.value != self.bar.value
@@ -83,26 +91,25 @@ class TestCliParser:
         with pytest.raises(SystemExit):
             MyCLI()
 
-    def test_bool_arg(self):
-        class MyCLI(CliParser):
-            foo = Arg("--foo", type=bool, help="Foo value")
+    def test_bool_arg_error(self):
+        with pytest.raises(ValueError):
+            foo = Arg("--foo", type=bool, required=True, help="Foo value")  # noqa  # type: ignore  # NOSONAR
 
-        sys.argv = ["myapp", "--foo"]
-        cli = MyCLI()
-        assert cli.foo.value is True
+        with pytest.raises(ValueError):
+            foo = Arg("--foo", type=bool, default=False, help="Foo value")  # noqa  # type: ignore  # NOSONAR
+
+    def test_bool_optarg_error(self):
+        with pytest.raises(ValueError):
+            foo = OptArg("--foo", type=bool, help="Foo value")  # noqa  # type: ignore  # NOSONAR
+
+    def test_flagarg(self):
+        class MyCLI(CliParser):
+            foo = FlagArg("--foo", help="Foo value")
 
         sys.argv = ["myapp"]
         cli = MyCLI()
         assert cli.foo.value is False
 
-    def test_optional_bool_arg(self):
-        class MyCLI(CliParser):
-            foo = Arg("--foo", type=bool, default=False, help="Foo value")
-
         sys.argv = ["myapp", "--foo"]
         cli = MyCLI()
         assert cli.foo.value is True
-
-        sys.argv = ["myapp"]
-        cli = MyCLI()
-        assert cli.foo.value is False

@@ -18,17 +18,37 @@ class TestCliParser:
         cli = MyCLI()
         assert cli.foo.value == "bar"
 
-    def test_required_arg(self):
+    def test_positional_arg(self):
+        with pytest.raises(ValueError):  # Positional args are always required
+            foo = Arg("foo", required=False, type=str, help="Foo value")  # noqa  # type: ignore  # NOSONAR
+
+        with pytest.raises(ValueError):  # Positional args cannot have a default value
+            foo = Arg("foo", default='Teste', type=str, help="Foo value")  # noqa  # type: ignore  # NOSONAR
+
+        class MyCLI(CliParser):
+            foo = Arg("foo", type=str, help="Foo value")
+
+        assert MyCLI.foo.is_positional is True
+
+        sys.argv = ["myapp", "bar"]
+        cli = MyCLI()
+        assert cli.foo.value == "bar"
+
+    def test_required_non_positional_arg(self):
         class MyCLI(CliParser):
             foo = Arg("--foo", type=str, required=True, help="Foo value")
+
+        assert MyCLI.foo.is_positional is False
 
         sys.argv = ["myapp"]
         with pytest.raises(SystemExit):
             MyCLI()
 
-    def test_default_value(self):
+    def test_default_value_non_positional_arg(self):
         class MyCLI(CliParser):
             foo = Arg("--foo", type=str, default="baz", help="Foo value")
+
+        assert MyCLI.foo.is_positional is False
 
         sys.argv = ["myapp"]
         cli = MyCLI()

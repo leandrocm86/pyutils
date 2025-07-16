@@ -8,7 +8,8 @@ T = TypeVar('T')
 
 
 class BaseArg(Generic[T], ABC):
-    """ Abstract argument base for wrapping argparse args. Implementations: 
+    """ Abstract argument base for wrapping argparse args.
+    The following implementations are used based on the argument's requirements and its output type:
     Arg: for arguments that must be supplied or that have default values.
     OptArg: for optional arguments that may be None.
     FlagArg: for boolean flags that will be true if and only if they are present.
@@ -35,7 +36,10 @@ class BaseArg(Generic[T], ABC):
 
         self._parsed_value = default
 
-        self._parsed_name = max(names, key=len).removeprefix('--').replace('-', '_')
+        main_name = max(names, key=len)
+        self.is_positional = not main_name.startswith('--')
+
+        self._parsed_name = main_name.removeprefix('--').replace('-', '_')
 
     def _check_value_already_parsed(self):
         if not hasattr(self, "_parsed_value"):
@@ -65,11 +69,16 @@ class Arg(BaseArg[T]):
         super().__init__(*names, type=type, required=required, default=default,
                          choices=choices, validation=validation, help=help)
 
-        if required is not True and default is None:
-            raise ValueError("Either 'required' must be True or 'default' must be provided for Arg. Otherwise, use OptArg.")
+        if self.is_positional:
+            if required is False or default is not None:
+                raise ValueError("Positional arguments must be required and cannot have a default value. Use OptArg for optional arguments.")
+            self.required = None  # Argparse does not accept "required" attribute for positional arguments, because it's implied to be True.
+        else:
+            if required is not True and default is None:
+                raise ValueError("Either 'required' must be True or (when not positional) 'default' must be provided for Arg. Otherwise, use OptArg.")
 
-        if required is True and default is not None:
-            raise ValueError("If 'required' is True, 'default' should not be provided for Arg.")
+            if required is True and default is not None:
+                raise ValueError("If 'required' is True, 'default' should not be provided for Arg.")
 
         if type is bool:
             raise ValueError("Arg cannot be used with type bool. Use FlagArg for boolean flags instead.")
@@ -156,7 +165,7 @@ class CliParser:
     """
 
     def __init__(self, prog: str = "", description: str = "", epilog: str = ""):
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
         if prog:
             parser.prog = prog
         if description:

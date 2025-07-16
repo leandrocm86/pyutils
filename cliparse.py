@@ -8,7 +8,12 @@ T = TypeVar('T')
 
 
 class BaseArg(Generic[T], ABC):
-    """Argument descriptor with generic type parameter."""
+    """ Abstract argument base for wrapping argparse args. Implementations: 
+    Arg: for arguments that must be supplied or that have default values.
+    OptArg: for optional arguments that may be None.
+    FlagArg: for boolean flags that will be true if and only if they are present.
+    VarArgs: for multi-value arguments, which are parsed as tuples.
+    """
 
     def __init__(
         self,
@@ -35,6 +40,9 @@ class BaseArg(Generic[T], ABC):
     def _check_value_already_parsed(self):
         if not hasattr(self, "_parsed_value"):
             raise ValueError(f"Value for argument '{self._parsed_name}' has not been parsed yet.")
+
+    def __str__(self) -> str:
+        return str(self._parsed_value)
 
 
 class Arg(BaseArg[T]):
@@ -147,12 +155,14 @@ class CliParser:
     Currently, subgroups/commands are not supported yet.
     """
 
-    def __init__(self, prog: str = "", description: str = ""):
+    def __init__(self, prog: str = "", description: str = "", epilog: str = ""):
         parser = argparse.ArgumentParser()
         if prog:
             parser.prog = prog
         if description:
             parser.description = description
+        if epilog:
+            parser.epilog = epilog
 
         attrs = self.__class__.__dict__.values()
 

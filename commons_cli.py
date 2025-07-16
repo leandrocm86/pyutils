@@ -8,7 +8,7 @@ from typing import Type  # type: ignore  # noqa
 from mods.log import LOG, _inspect_exception_hook  # type: ignore  # noqa
 from mods import color  # type: ignore  # noqa
 from mods.pstr import pstr  # type: ignore  # noqa
-from mods.cliparse import CliParser, Arg, OptArg, FlagArg, VarArgs
+from mods.cliparse import CliParser, Arg, OptArg, FlagArg, VarArgs  # type: ignore  # noqa
 import mods.system # type: ignore # noqa
 
 

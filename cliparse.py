@@ -1,6 +1,6 @@
 from abc import ABC
 from pathlib import Path
-from typing import Any, Optional, Callable, TypeVar, Generic, Type
+from typing import Any, Optional, Callable, Sequence, TypeVar, Generic, Type
 import argparse
 
 # Type variable for generic typing
@@ -21,7 +21,7 @@ class BaseArg(Generic[T], ABC):
         *names: str,
         type: Type[T],
         required: Optional[bool] = None,
-        default: T | Optional[T] | list[T] = None,
+        default: T | Optional[T] | Sequence[T] = None,
         choices: Optional[list[T]] = None,
         validation: Optional[Callable[[T], bool]] = None,
         help: str = "",
@@ -38,6 +38,9 @@ class BaseArg(Generic[T], ABC):
 
         main_name = max(names, key=len)
         self.is_positional = not main_name.startswith('--')
+
+        if self.is_positional:
+            self._required = None  # Argparse does not accept "required" attribute for positional arguments.
 
         self._parsed_name = main_name.removeprefix('--').replace('-', '_')
 
@@ -60,28 +63,16 @@ class Arg(BaseArg[T]):
         self,
         *names: str,
         type: Type[T],
-        required: Optional[bool] = None,
         default: Optional[T] = None,
         choices: Optional[list[T]] = None,
         validation: Optional[Callable[[T], bool]] = None,
         help: str = "",
     ):
+        required = True if default is None else False
         super().__init__(*names, type=type, required=required, default=default,
                          choices=choices, validation=validation, help=help)
 
-        if self.is_positional:
-            if required is False or default is not None:
-                raise ValueError("Positional arguments must be required and cannot have a default value. Use OptArg for optional arguments.")
-            self.required = None  # Argparse does not accept "required" attribute for positional arguments, because it's implied to be True.
-        else:
-            if required is not True and default is None:
-                raise ValueError("Either 'required' must be True or (when not positional) 'default' must be provided for Arg. Otherwise, use OptArg.")
-
-            if required is True and default is not None:
-                raise ValueError("If 'required' is True, 'default' should not be provided for Arg.")
-
-        if type is bool:
-            raise ValueError("Arg cannot be used with type bool. Use FlagArg for boolean flags instead.")
+        assert type is not bool, "Arg cannot be used with type bool. Use FlagArg for boolean flags instead."
 
     @property
     def value(self) -> T:
@@ -105,8 +96,8 @@ class OptArg(BaseArg[T]):
         help: str = "",
     ):
         super().__init__(*names, type=type, required=False, default=None, choices=choices, validation=validation, help=help)
-        if type is bool:
-            raise ValueError("OptArg cannot be used with type bool. Use FlagArg for boolean flags instead.")
+
+        assert type is not bool, "OptArg cannot be used with type bool. Use FlagArg for boolean flags instead."
 
     @property
     def value(self) -> Optional[T]:
@@ -120,7 +111,9 @@ class FlagArg(BaseArg[bool]):
     """
 
     def __init__(self, *names: str, help: str = ""):
+        assert names and all(name.startswith('-') for name in names), "FlagArg names must start with '--' or '-'."
         super().__init__(*names, type=bool, required=False, default=False, help=help)
+        assert not self.is_positional, "FlagArg cannot be positional, it must be optional and have a default value of False."
 
     @property
     def value(self) -> bool:
@@ -130,6 +123,8 @@ class FlagArg(BaseArg[bool]):
 
 class VarArgs(BaseArg[T]):
     """ Wraps the definitions for an argparse argument that is multi-value.
+    The nargs value determinates if values are required, and how many.
+    The default value is only used when nargs is '*' or '?', meaning it can be empty.
     An additional "validation" property enables custom validation for each argument.
     Its values get parsed and validated as soon as the parent CliParser is instantiated.
     For single-value arguments, use Arg, OptArg or FlagArg instead.
@@ -139,21 +134,22 @@ class VarArgs(BaseArg[T]):
         self,
         *names: str,
         type: Type[T],
-        required: Optional[bool] = None,
-        default: Optional[list[T]] = None,
+        default: Optional[Sequence[T]] = None,
         nargs: Optional[str] = None,
         choices: Optional[list[T]] = None,
         validation: Optional[Callable[[T], bool]] = None,
         help: str = "",
     ):
-        super().__init__(*names, type=type, required=required, default=default,
+        super().__init__(*names, type=type, default=default,
                          choices=choices, validation=validation, help=help)
         self._nargs = nargs
+
+        assert default is None or nargs in ('*', '?'), 'VarArgs default value can only be used when nargs is "*" or "?"'
 
     @property
     def values(self) -> tuple[T, ...]:
         super()._check_value_already_parsed()
-        return tuple(self._parsed_value)  # type: ignore
+        return self._parsed_value  # type: ignore
 
 
 class CliParser:
@@ -204,12 +200,17 @@ class CliParser:
         for att in attrs:
             if isinstance(att, BaseArg):
                 parsed_value = args.__dict__[att._parsed_name]
+                if isinstance(att, VarArgs):
+                    parsed_value = tuple(parsed_value) if parsed_value else ()
                 # if parsed_value is None and att._type is bool:
                 #     parsed_value = False
-                if att._validation:
+                if att._validation and parsed_value:
                     try:
-                        valid_input = att._validation(parsed_value)
-                        if not valid_input:
+                        if isinstance(att, VarArgs):
+                            for value in parsed_value:
+                                if not att._validation(value):
+                                    raise ValueError(f"Invalid value for argument {att._parsed_name}: {str(value)[:50]}")
+                        elif not att._validation(parsed_value):
                             parser.error(f"Invalid value for argument {att._parsed_name}")
                     except Exception as e:
                         parser.error(str(e))
@@ -229,11 +230,11 @@ class CliParser:
 if __name__ == "__main__":
 
     class MyCLI(CliParser):
-        host = Arg("--host", required=True, type=str, help='Host server')
+        host = Arg("--host", type=str, help='Host server')
         port = Arg("-p", "--port", type=int, default=0, help='Connection port')
         email = OptArg("--email", type=str, help='Email address')
-        paths = VarArgs("input_files", type=Path,
-                        nargs="+", default=[Path('.')], help='Files to process')
+        paths = VarArgs("input_files", type=Path, default=[Path('.')],
+                        nargs="*", help='Files to process')
         print_colored = FlagArg("--print-colored", help='Display colors [default: false]')
         print_black = FlagArg("--print-black", help='Black&White')
 

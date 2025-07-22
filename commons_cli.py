@@ -5,11 +5,11 @@ import time  # type: ignore  # noqa
 from pathlib import Path  # type: ignore  # noqa
 from types import TracebackType
 from typing import Type  # type: ignore  # noqa
-from mods.log import LOG, _inspect_exception_hook  # type: ignore  # noqa
+from mods import log  # type: ignore  # noqa
 from mods import color  # type: ignore  # noqa
 from mods.pstr import pstr  # type: ignore  # noqa
 from mods.cliparse import CliParser, Arg, OptArg, FlagArg, VarArgs  # type: ignore  # noqa
-import mods.system # type: ignore # noqa
+from mods import system # type: ignore # noqa
 
 
 def setpostmortem():
@@ -31,7 +31,7 @@ def setpostmortem():
                           exc_value: BaseException,
                           exc_traceback: TracebackType):
 
-        _inspect_exception_hook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback)
+        log._inspect_exception_hook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback)
         print(f"Exception of type {exc_type.__name__} occurred: {color.red(str(exc_value))}")
         if input('Enter debug mode? (y/n) : ') in ('y', 'Y'):
             print("Starting post-mortem debugging session...")
@@ -39,4 +39,5 @@ def setpostmortem():
 
     # Register the custom exception hook, only if we're not in interactive mode
     if not hasattr(sys, 'ps1') or sys.stderr.isatty():
+        log.info('Setting up postmortem hook...')
         sys.excepthook = exception_handler

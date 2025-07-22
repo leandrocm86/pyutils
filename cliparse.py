@@ -199,6 +199,10 @@ class CliParser:
         args = parser.parse_args()
         for att in attrs:
             if isinstance(att, BaseArg):
+                if isinstance(att, FlagArg) and not hasattr(args, att._parsed_name):
+                    # FlagArg is not present, so its value remains False
+                    att._parsed_value = False
+                    continue
                 parsed_value = args.__dict__[att._parsed_name]
                 if isinstance(att, VarArgs):
                     parsed_value = tuple(parsed_value) if parsed_value else ()

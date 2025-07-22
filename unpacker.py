@@ -4,16 +4,16 @@ import zipfile
 import gzip
 import shutil
 from pathlib import Path
+from typing import Optional
 
-path = Path | str
-optional_path = path | None
+StrPath = Path | str
 
 
-def is_compressed(file_path: path) -> bool:
+def is_compressed(file_path: StrPath) -> bool:
     return any(str(file_path).endswith(ext) for ext in ('.tar', 'zip', '.gz'))
 
 
-def extract_all_files(file_path: path, output_dir: optional_path = None,
+def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
                       preserve_structure: bool = True) -> list[str]:
     """
     Function that checks the given compressed file's extension and extracts it with the appropriate module.
@@ -24,21 +24,21 @@ def extract_all_files(file_path: path, output_dir: optional_path = None,
     """
 
     ext = os.path.splitext(file_path)[1].lower()
+    out = str(output_dir) if output_dir else 'the same folder'
+
+    print(f"Extracting {file_path} to {out}")
 
     if ext == '.tar' or ext == '.tar.gz':
-        print(f"Extracting {file_path} using tarfile...")
         return extract_tar_file(file_path, output_dir, preserve_structure)
     elif ext == '.zip':
-        print(f"Extracting {file_path} using zipfile...")
         return extract_zip_file(file_path, output_dir, preserve_structure)
     elif ext == '.gz':
-        print(f"Extracting {file_path} using gzip...")
         return [extract_gz_file(file_path, output_dir)]
 
     raise ValueError(f"Unsupported file extension: {ext}")
 
 
-def extract_tar_file(file_path: path, output_dir: optional_path = None,
+def extract_tar_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
                      preserve_structure: bool = True) -> list[str]:
     """
     Extracts all files from a .tar or .tar.gz file into a specified output directory.
@@ -67,7 +67,7 @@ def extract_tar_file(file_path: path, output_dir: optional_path = None,
     return extracted_paths
 
 
-def extract_zip_file(file_path: path, output_dir: optional_path = None,
+def extract_zip_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
                      preserve_structure: bool = True) -> list[str]:
     """
     Extracts all files from a .zip file into a specified output directory.
@@ -94,7 +94,7 @@ def extract_zip_file(file_path: path, output_dir: optional_path = None,
     return extracted_paths
 
 
-def extract_gz_file(file_path: path, output_dir: optional_path = None) -> str:
+def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None) -> str:
     """
     Extracts a .gz file into a specified output directory.
     If no output directory is specified, the files are extracted into the same directory of the compressed file.
@@ -109,3 +109,21 @@ def extract_gz_file(file_path: path, output_dir: optional_path = None) -> str:
         with open(decompressed_file_path, 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)  # type: ignore
         return decompressed_file_path
+
+
+if __name__ == "__main__":
+    from mods.cliparse import CliParser, OptArg, VarArgs, FlagArg
+
+    class UnpackerArgs(CliParser):
+        file_paths = VarArgs('file_paths', nargs='+', help='Path to the compressed file to unpack', type=Path,
+                             validation=lambda p: p.exists() and is_compressed(p))
+
+        output_dir = OptArg('-o', '--output-dir', type=Path, validation=lambda p: p.is_dir() and os.access(p, os.W_OK),
+                            help='Directory to extract files to (default: same as file path)')
+
+        preserve_structure = FlagArg(
+            '--ps', '--preserve-structure', help='Preserve folder structure inside the compressed file')
+
+    args = UnpackerArgs()
+    for path in args.file_paths.values:
+        extract_all_files(path, args.output_dir.value, args.preserve_structure.value)

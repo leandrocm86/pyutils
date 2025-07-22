@@ -1,4 +1,4 @@
-from typing import Any, Callable, TypeVar
+from typing import Callable, TypeVar, ParamSpec
 from contextlib import suppress
 import functools
 import time
@@ -6,6 +6,7 @@ import time
 
 _T = TypeVar("_T")
 _E = TypeVar("_E", bound=Exception)
+_P = ParamSpec("_P")
 
 # Expected to be used as a 'with' statement, to suppress any possible exception.
 care = suppress(BaseException)
@@ -61,7 +62,7 @@ def raising(func=None, *, exceptions=(), suppress=False, logfunc=print, trace=Tr
 def retry(max_attempts: int,
           delay: int = 2,
           exceptions: tuple[type[_E], ...] = (Exception,),
-          logfunc: Callable[[str], None] = print):
+          logfunc: Callable[[str], None] | None = print) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]:
     """
     Retry decorator that will re-execute a function until none of the given exceptions is raised or the given maximum attempts is reached.
 
@@ -71,9 +72,9 @@ def retry(max_attempts: int,
     - exceptions: Tuple of exceptions to catch and retry on. Defaults to Exception.
     - logfunc: Function to print messages of each retry attempt. Defaults to print. Use None for no logs.
     """
-    def decorator(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
+    def decorator(func: Callable[_P, _T]) -> Callable[_P, _T]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
             mtries, mdelay = max_attempts, delay
             while mtries > 0:
                 try:

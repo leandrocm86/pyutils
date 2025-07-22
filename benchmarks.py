@@ -3,7 +3,7 @@ import inspect
 import gc
 import functools
 from itertools import cycle
-from typing import Callable, Sequence, TypeVar
+from typing import Any, Callable, Sequence, TypeVar
 from mods.color import yellow, cyan, green
 
 
@@ -139,7 +139,7 @@ def compare(functions: Sequence[Callable[[], None]],
     return times, all_outputs
 
 
-def timed(func=None, *, logfunc=print):
+def timed(func: Callable[[Any], Any] | None = None, *, logfunc: Callable[[str], None] = print) -> Callable[[Any], Any]:
     """
     A decorator that measures the time spent executing a function.
     It logs the time when the function finishes, according to logfunc parameter.
@@ -149,7 +149,7 @@ def timed(func=None, *, logfunc=print):
     :param func: The function to be decorated (None if used with parentheses).
     :param logfunc: The function for logging the time spent (print by default).
     """
-    def decorator(f):
+    def decorator(f: Callable[[Any], Any]) -> Callable[[Any], Any]:
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             try:

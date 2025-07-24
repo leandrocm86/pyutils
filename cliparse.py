@@ -36,7 +36,10 @@ class BaseArg(Generic[T], ABC):
 
         self._parsed_value = default
 
-        main_name = max(names, key=len)
+        # After parsing, the value is stored under the first long option name provided,
+        # or the short option name if no long option is given.
+        main_name = next((name for name in names if name.startswith('--')), names[0])
+
         self.is_positional = not main_name.startswith('--')
 
         if self.is_positional:

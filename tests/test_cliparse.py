@@ -110,7 +110,7 @@ class TestCliParser:
 
     def test_flagarg(self):
         class MyCLI(CliParser):
-            foo = FlagArg("--foo", help="Foo value")
+            foo = FlagArg("--foo-flag", help="Foo value")
 
         sys.argv = ["myapp"]
         cli = MyCLI()
@@ -145,5 +145,16 @@ class TestCliParser:
             foo = VarArgs("foo", type=str, nargs="*", help="Foo values", default=["default"])
 
         sys.argv = ["myapp"]
+        MyCLI()
+
+    def test_multiple_long_names(self):
+        class MyCLI(CliParser):
+            foo = Arg("--foo", "--foobar", type=str, help="Foo or Bar value")
+
+        sys.argv = ["myapp", "--foo", "baz"]
         cli = MyCLI()
-        assert cli.foo.values == ("default",)
+        assert cli.foo.value == "baz"
+
+        sys.argv = ["myapp", "--foobar", "qux"]
+        cli = MyCLI()
+        assert cli.foo.value == "qux"

@@ -4,7 +4,7 @@ import gc
 import functools
 from itertools import cycle
 from typing import Any, Callable, Sequence, TypeVar
-from mods.color import yellow, cyan, green
+from mods.style import yellow, cyan, green
 
 
 T = TypeVar('T')

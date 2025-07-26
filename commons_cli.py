@@ -32,7 +32,7 @@ def setpostmortem():
                           exc_traceback: TracebackType):
 
         log._inspect_exception_hook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback)
-        print(f"Exception of type {exc_type.__name__} occurred: {color.red(str(exc_value))}")
+        print(f"Exception of type {exc_type.__name__} occurred: {style.red(str(exc_value))}")
         if input('Enter debug mode? (y/n) : ') in ('y', 'Y'):
             print("Starting post-mortem debugging session...")
             pdb.post_mortem(exc_traceback)

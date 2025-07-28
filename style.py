@@ -101,6 +101,16 @@ def cyan(text: str) -> str:
     return painter(text)
 
 
+def bold(text: str) -> str:
+    painter = get_painter(format=Format.BOLD)
+    return painter(text)
+
+
+def underline(text: str) -> str:
+    painter = get_painter(format=Format.UNDERLINE)
+    return painter(text)
+
+
 def create_panel(content: str,
                  title: Optional[str] = None,
                  color: Optional[Color] = None,

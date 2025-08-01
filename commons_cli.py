@@ -24,18 +24,18 @@ def setpostmortem():
     This is meant to be used as a way to debug unexpected exceptions that
     occur in scripts, by allowing the user to drop into a debugging session.
     """
-    import sys
     import pdb
     try:
-        import bpython
+        import bpython  # type: ignore
     except ImportError:
         bpython = None  # Handle case where bpython is not installed
 
     def exception_handler(exc_type: type[BaseException],
                           exc_value: BaseException,
                           exc_traceback: TracebackType):
-        # Assuming log and style are defined elsewhere
-        log._inspect_exception_hook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback)
+
+        # The mods.log module has an exception handler too, so we should use it
+        log._inspect_exception_hook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback)  # type: ignore
         print(f"Exception of type {exc_type.__name__} occurred: {style.red(str(exc_value))}")
 
         # Prompt user to choose debugging mode
@@ -57,7 +57,7 @@ def setpostmortem():
                 tb = tb.tb_next
             frame = tb.tb_frame
             # Pass the frame's locals to bpython
-            bpython.embed(locals_=frame.f_locals)
+            bpython.embed(locals_=frame.f_locals)  # type: ignore
         else:
             print("Skipping debug mode.")
 

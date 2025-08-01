@@ -8,6 +8,11 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
 
+def __remove_digits(text: str) -> str:
+    """Remove all digits from the text."""
+    return ''.join(char for char in text if not char.isdigit())
+
+
 def _load_aes_key(key_path: str):
     """Loads a Base64 encoded AES key from a file."""
     try:
@@ -89,8 +94,8 @@ def generate_system_key():
     # Collect system information
     system_info = [
         platform.system(),
-        platform.platform(),
-        platform.version(),
+        __remove_digits(platform.platform()),
+        __remove_digits(platform.version().split()[0]),  # Get the first part of the version
         platform.machine(),
         platform.node(),
         platform.processor(),

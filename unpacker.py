@@ -4,13 +4,183 @@ import zipfile
 import gzip
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 StrPath = Path | str
 
 
 def is_compressed(file_path: StrPath) -> bool:
-    return any(str(file_path).endswith(ext) for ext in ('.tar', 'zip', '.gz'))
+    return any(str(file_path).endswith(ext) for ext in ('.tar', '.zip', '.gz'))
+
+
+def list_contents(file_path: StrPath) -> List[str]:
+    """
+    Lists the contents of a compressed file based on its extension.
+    Returns a list of file paths/names contained in the archive.
+
+    Args:
+        file_path: Path to the compressed file
+
+    Returns:
+        List of file paths/names in the archive
+
+    Raises:
+        ValueError: If file extension is not supported
+    """
+    ext = os.path.splitext(file_path)[1].lower()
+
+    if ext == '.tar' or str(file_path).endswith('.tar.gz'):
+        return list_tar_contents(file_path)
+    elif ext == '.zip':
+        return list_zip_contents(file_path)
+    elif ext == '.gz':
+        return list_gz_contents(file_path)
+
+    raise ValueError(f"Unsupported file extension: {ext}")
+
+
+def list_tar_contents(file_path: StrPath) -> List[str]:
+    """
+    Lists all files and directories in a .tar or .tar.gz file.
+
+    Args:
+        file_path: Path to the tar file
+
+    Returns:
+        List of file/directory names in the tar archive
+    """
+    ext = os.path.splitext(file_path)[1].lower()
+    mode = 'r' if ext == '.tar' else 'r:gz'
+
+    with tarfile.open(file_path, mode) as tar:
+        return tar.getnames()
+
+
+def list_zip_contents(file_path: StrPath) -> List[str]:
+    """
+    Lists all files and directories in a .zip file.
+
+    Args:
+        file_path: Path to the zip file
+
+    Returns:
+        List of file/directory names in the zip archive
+    """
+    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+        return zip_ref.namelist()
+
+
+def list_gz_contents(file_path: StrPath) -> List[str]:
+    """
+    Lists the content of a .gz file.
+    Since .gz files typically contain a single compressed file,
+    this returns a list with the name of the decompressed file.
+
+    Args:
+        file_path: Path to the .gz file
+
+    Returns:
+        List containing the name of the decompressed file
+    """
+    file_name = os.path.splitext(os.path.basename(file_path))[0]
+    return [file_name]
+
+
+def get_detailed_contents(file_path: StrPath) -> List[Dict[str, Any]]:
+    """
+    Gets detailed information about the contents of a compressed file.
+
+    Args:
+        file_path: Path to the compressed file
+
+    Returns:
+        List of dictionaries with detailed file information
+
+    Raises:
+        ValueError: If file extension is not supported
+    """
+    ext = os.path.splitext(file_path)[1].lower()
+
+    if ext == '.tar' or str(file_path).endswith('.tar.gz'):
+        return get_tar_details(file_path)
+    elif ext == '.zip':
+        return get_zip_details(file_path)
+    elif ext == '.gz':
+        return get_gz_details(file_path)
+
+    raise ValueError(f"Unsupported file extension: {ext}")
+
+
+def get_tar_details(file_path: StrPath) -> List[Dict[str, Any]]:
+    """
+    Gets detailed information about files in a tar archive.
+
+    Args:
+        file_path: Path to the tar file
+
+    Returns:
+        List of dictionaries with file details (name, size, mtime, is_directory)
+    """
+    ext = os.path.splitext(file_path)[1].lower()
+    mode = 'r' if ext == '.tar' else 'r:gz'
+
+    details: List[Dict[str, Any]] = []
+    with tarfile.open(file_path, mode) as tar:
+        for member in tar.getmembers():
+            details.append({
+                'name': member.name,
+                'size': member.size,
+                'mtime': member.mtime,
+                'is_directory': member.isdir(),
+                'is_file': member.isfile(),
+                'mode': member.mode
+            })
+    return details
+
+
+def get_zip_details(file_path: StrPath) -> List[Dict[str, Any]]:
+    """
+    Gets detailed information about files in a zip archive.
+
+    Args:
+        file_path: Path to the zip file
+
+    Returns:
+        List of dictionaries with file details (name, size, compress_size, date_time, is_directory)
+    """
+    details: List[Dict[str, Any]] = []
+    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+        for info in zip_ref.infolist():
+            details.append({
+                'name': info.filename,
+                'size': info.file_size,
+                'compress_size': info.compress_size,
+                'date_time': info.date_time,
+                'is_directory': info.is_dir(),
+                'compression': info.compress_type
+            })
+    return details
+
+
+def get_gz_details(file_path: StrPath) -> List[Dict[str, Any]]:
+    """
+    Gets information about a .gz file.
+
+    Args:
+        file_path: Path to the .gz file
+
+    Returns:
+        List with a single dictionary containing file information
+    """
+    file_name = os.path.splitext(os.path.basename(file_path))[0]
+    file_stats = os.stat(file_path)
+
+    return [{
+        'name': file_name,
+        'compressed_size': file_stats.st_size,
+        'mtime': file_stats.st_mtime,
+        'is_directory': False
+    }]
 
 
 def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
@@ -121,9 +291,24 @@ if __name__ == "__main__":
         output_dir = OptArg('-o', '--output-dir', type=Path, validation=lambda p: p.is_dir() and os.access(p, os.W_OK),
                             help='Directory to extract files to (default: same as file path)')
 
-        preserve_structure = FlagArg(
-            '--ps', '--preserve-structure', help='Preserve folder structure inside the compressed file')
+        preserve_structure = FlagArg('--ps', '--preserve-structure', help='Preserve folder structure inside the compressed file')
+
+        list = FlagArg('-l', '--list', help='List contents of the compressed file without extracting')
+
+        def _post_validate(self):
+            print(f'{self.list.value=}, {self.output_dir.value=}, {self.preserve_structure.value=}')
+            print(f'{UnpackerArgs.list.value=}, {UnpackerArgs.output_dir.value=}, {UnpackerArgs.preserve_structure.value=}')
+            if self.list.value:
+                assert not self.output_dir.value and not self.preserve_structure.value, \
+                    "Cannot use --list with --output-dir or --preserve-structure"
 
     args = UnpackerArgs()
     for path in args.file_paths.values:
-        extract_all_files(path, args.output_dir.value, args.preserve_structure.value)
+        if not args.list.value:
+            extract_all_files(path, args.output_dir.value,
+                              args.preserve_structure.value)
+        else:
+            contents = list_contents(path)
+            print(f"Contents of {path}:")
+            for item in contents:
+                print(f" - {item}")

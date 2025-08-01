@@ -7,7 +7,7 @@ from types import TracebackType
 from typing import Type  # type: ignore  # noqa
 from mods import log  # type: ignore  # noqa
 from mods import style  # type: ignore  # noqa
-from mods.pstr import pstr  # type: ignore  # noqa
+from mods.pstr import pstr, ppstr  # type: ignore  # noqa
 from mods.cliparse import CliParser, Arg, OptArg, FlagArg, VarArgs  # type: ignore  # noqa
 from mods import system # type: ignore # noqa
 

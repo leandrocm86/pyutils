@@ -25,13 +25,21 @@ def __color(depth: int) -> str:
 __COLOR_END: str = '\033[0m'
 
 
-def pstr(obj: object, maxlen: int = 20, maxdepth: int = 3,
+def ppstr(obj: object, maxlen: int = 50, maxdepth: int = 3,
+          colored: bool = sys.stdout.isatty()) -> None:
+    """Prints a pretty string representation of an object.
+    For details about the parameters, see pstr()."""
+
+    print(pstr(obj, maxlen=maxlen, maxdepth=maxdepth, colored=colored))
+
+
+def pstr(obj: object, maxlen: int = 50, maxdepth: int = 3,
          colored: bool = sys.stdout.isatty()) -> str:
     """Creates a pretty string representation of an object.
     It respects the given constraints (maxlen and maxdepth) to truncate the output when needed.
     Args:
         obj (object): The object to be represented.
-        maxlen (int, optional): The maximum number of (inner) items to be included in the output, for each object. Defaults to 20.
+        maxlen (int, optional): The maximum number of (inner) items to be included in the output, for each object. Defaults to 50.
         maxdepth (int, optional): The maximum depth of nested objects to be included in the output. Defaults to 3.
         colored (bool, optional): Whether to use colors in the output. Defaults to True if stdout is a terminal.
     Returns:

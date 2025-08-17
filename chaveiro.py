@@ -2,8 +2,8 @@ import os
 import getpass
 import platform
 import hashlib
-from cryptography.fernet import Fernet
 import base64
+from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
@@ -150,3 +150,12 @@ def decrypt_from_tempfile(filepath: str) -> str:
             return decrypt(f.read())
     finally:
         os.remove(filepath)
+
+
+if __name__ == '__main__':
+    import sys
+    assert len(sys.argv) == 3 and sys.argv[1] in ('encrypt', 'decrypt'),  \
+        f'Usage: {sys.argv[0]} <encrypt|decrypt> <text>'
+
+    function = encrypt if sys.argv[1] == 'encrypt' else decrypt
+    print(function(sys.argv[2]))

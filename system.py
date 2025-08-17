@@ -12,17 +12,24 @@ def __run(cmd: str | Iterable[str],
           check: bool,
           capture_output: bool,
           timeout: Optional[float],
-          logfunc: Callable[[str], None]) -> subprocess.CompletedProcess[Any]:
-    logfunc(f'Executing: {cmd}')
+          logfunc: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[Any]:
+    if logfunc:
+        logfunc(f'Executing: {cmd}')
     shell = isinstance(cmd, str)
-    return subprocess.run(args=cmd, shell=shell, check=check, timeout=timeout, capture_output=capture_output, text=capture_output)  # type: ignore
+    result = subprocess.run(args=cmd, shell=shell, check=check, timeout=timeout, capture_output=capture_output, text=capture_output)  # type: ignore
+    if logfunc:
+        if result.stdout:
+            logfunc(f'Stdout: {result.stdout}')
+        if result.stderr:
+            logfunc(f'Stderr: {result.stderr}')
+    return result
 
 
 def exec(cmd: str | Iterable[str],
          check: bool = True,
          ignore_output: bool = False,
          timeout: Optional[float] = 10,
-         logfunc: Callable[[str], None] = print):
+         logfunc: Optional[Callable[[str], None]] = print):
     """
     Executa um comando onde nenhum output é esperado.
     Params:
@@ -41,7 +48,7 @@ def exec(cmd: str | Iterable[str],
 def read(cmd: str | Iterable[str],
          check: bool = True,
          timeout: Optional[float] = 10,
-         logfunc: Callable[[str], None] = print) -> str:
+         logfunc: Optional[Callable[[str], None]] = print) -> str:
     """
     Executa um comando e retorna os outputs (stdout + stderr).
     Params:
@@ -54,13 +61,14 @@ def read(cmd: str | Iterable[str],
     return result.stdout.strip() + result.stderr.strip()
 
 
-def exec_async(cmd: str | Iterable[str], logfunc: Callable[[str], None] = print):
+def exec_async(cmd: str | Iterable[str], logfunc: Optional[Callable[[str], None]] = print):
     """
     Execute the commands on the OS, not waiting for their output.
     It's not possible to check the output, nor setting a timeout.
     If cmd is a string, it will be executed with shell=True (not recommended if there's user input).
     """
-    logfunc(f'Executing asynchronously: {cmd}')
+    if logfunc:
+        logfunc(f'Executing asynchronously: {cmd}')
     shell = isinstance(cmd, str)
     subprocess.Popen(args=cmd, shell=shell)  # type: ignore
 

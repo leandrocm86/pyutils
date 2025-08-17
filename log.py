@@ -117,7 +117,7 @@ def __print_frame_info(frame: FrameType, line_number: int, frame_number: int, ma
         for name, value in sorted(locals_dict.items()):
             try:
                 # Use pstr for better formatting of complex objects
-                value_str = pstr(value, colored=ExceptionsConfig.colored_print)
+                value_str = pstr(value, colored=ExceptionsConfig.colored_print, maxlen=20, maxdepth=2)
                 # Truncate very long values
                 print(f"  {name:>{name_padding}} = {value_str}")
             except Exception as e:
@@ -150,14 +150,12 @@ def _inspect_exception_hook(exc_type: type,
     MAX_FRAMES: int = ExceptionsConfig.max_frames
 
     LOG.error(f"UNHANDLED EXCEPTION: {exc_type.__name__}: {exc_value}")
-    print("=" * 80)
+    print("=" * 74)
 
     # Print the normal traceback first
     if not ExceptionsConfig.suppress_default_stacktrace:
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         # traceback.print_exception(exc_type, exc_value, exc_traceback)
-
-    print("=" * 30 + " STACK DETAILS " + "=" * 30)
 
     # Collect all frames first
     frames: list[tuple[FrameType, int]] = []
@@ -165,6 +163,15 @@ def _inspect_exception_hook(exc_type: type,
     while tb is not None:
         frames.append((tb.tb_frame, tb.tb_lineno))
         tb = tb.tb_next
+
+    # Remove frame 0 (__main__)
+    frames.pop(0)
+
+    if not frames:
+        print("No frames to inspect in traceback")
+        return
+
+    print("=" * 29 + " STACK DETAILS " + "=" * 29)
 
     # Limit to last max_frames if specified
     if len(frames) > MAX_FRAMES:

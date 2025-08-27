@@ -9,6 +9,7 @@ from .style import green, cyan, yellow, red
 
 LOG_FILENAME = environ.get('LOG_FILE')
 LOG_LEVEL_NAME = environ.get('LOG_LEVEL', '').upper() or ('DEBUG' if sys.stdout.isatty() else 'INFO')
+SYSTEMD = environ.get('SYSTEMD')
 
 LOG_LEVEL_NUMBER: int = getattr(logging, LOG_LEVEL_NAME, -1)
 if LOG_LEVEL_NUMBER == -1:
@@ -26,11 +27,12 @@ class CustomFormatter(logging.Formatter):
     }
 
     def __init__(self, fmt: str = f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
-                 datefmt: str = '%d %b %H:%M:%S'):
+                 datefmt: str = '%d %b %H:%M:%S', colored: bool = False):
         super().__init__(fmt=fmt, datefmt=datefmt)
+        self.colored = colored
 
     def format(self, record: logging.LogRecord):
-        color = self.COLOR_BY_LEVEL.get(record.levelname)
+        color = self.COLOR_BY_LEVEL.get(record.levelname) if self.colored else None
         formatted_record = super().format(record)
         return color(formatted_record) if color else formatted_record
 
@@ -45,12 +47,29 @@ if LOG_FILENAME:
     file_handler = logging.FileHandler(LOG_FILENAME)
     file_handler.setFormatter(CustomFormatter())
     LOG.addHandler(file_handler)
+    LOG.debug(f'Added file handler for logger with level {LOG_LEVEL_NAME} on file {LOG_FILENAME}')
+elif SYSTEMD:
+    from systemd import journal
+    from types import MappingProxyType
+    # Override mapping: INFO (6 on journald) to 5 (notice),
+    # to distinguish from the default level 6 for stdout messages.
+    journal.JournaldLogHandler.LEVELS = MappingProxyType({
+        logging.CRITICAL: 2,
+        logging.DEBUG: 7,
+        logging.FATAL: 0,
+        logging.ERROR: 3,
+        logging.INFO: 5,  # 👈 remap INFO → NOTICE (5)
+        logging.NOTSET: 16,
+        logging.WARNING: 4,
+    })
+
+    LOG.addHandler(journal.JournaldLogHandler(SYSTEMD))
+    LOG.debug(f'Added journald handler for logger with level {LOG_LEVEL_NAME}')
 else:
     stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(CustomFormatter())
+    stream_handler.setFormatter(CustomFormatter(colored=True))
     LOG.addHandler(stream_handler)
-
-LOG.debug(f'Log file: "{LOG_FILENAME}". Log level: {LOG_LEVEL_NAME} ({LOG_LEVEL_NUMBER})')
+    LOG.debug(f'Added stream handler for logger with level {LOG_LEVEL_NAME}')
 
 
 def _concat(*args: tuple[Any, ...]) -> str:
@@ -171,7 +190,7 @@ def _inspect_exception_hook(exc_type: type,
         print("No frames to inspect in traceback")
         return
 
-    print("=" * 29 + " STACK DETAILS " + "=" * 29)
+    print("=" * 25 + " STACK DETAILS " + "=" * 25)
 
     # Limit to last max_frames if specified
     if len(frames) > MAX_FRAMES:

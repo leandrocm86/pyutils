@@ -169,7 +169,7 @@ def _inspect_exception_hook(exc_type: type,
     MAX_FRAMES: int = ExceptionsConfig.max_frames
 
     LOG.error(f"UNHANDLED EXCEPTION: {exc_type.__name__}: {exc_value}")
-    print("=" * 74)
+    print("=" * 64)
 
     # Print the normal traceback first
     if not ExceptionsConfig.suppress_default_stacktrace:

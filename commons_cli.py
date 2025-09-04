@@ -5,7 +5,8 @@ import time  # type: ignore  # noqa
 from pathlib import Path  # type: ignore  # noqa
 from types import TracebackType
 from typing import Type  # type: ignore  # noqa
-from mods import log  # type: ignore  # noqa
+from mods import log
+from mods.log import LOG  # type: ignore  # noqa
 from mods import style  # type: ignore  # noqa
 from mods.pstr import pstr, ppstr  # type: ignore  # noqa
 from mods.cliparse import CliParser, Arg, OptArg, FlagArg, VarArgs  # type: ignore  # noqa

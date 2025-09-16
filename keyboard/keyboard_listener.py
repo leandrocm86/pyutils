@@ -3,9 +3,9 @@ from __future__ import annotations
 # import time
 import evdev  # pip install evdev (parece ser linux-only)
 from .. import log
-from .keyboard_controller import KeyController, EventResult
+from .keyboard_controller import KeyController
 from .keyboard_robot import KeyboardRobot
-from .keyboard_events import KeyboardEvent 
+from .keyboard_events import KeyboardEvent
 
 
 def _find_keyboard_device(device_path: str, device_name: str) -> evdev.InputDevice:
@@ -17,7 +17,8 @@ def _find_keyboard_device(device_path: str, device_name: str) -> evdev.InputDevi
     devices: list[evdev.InputDevice] = [evdev.InputDevice(path) for path in devices_str]
     filtered_devices: list[evdev.InputDevice] = devices
 
-    log.info(f"Searching for keyboard device. Given name: {device_name or 'any'}. Given path: {device_path or 'any'}")
+    log.info(
+        f"Searching for keyboard device. Given name: {device_name or 'any'}. Given path: {device_path or 'any'}")
 
     if device_name:
         filtered_devices = [d for d in filtered_devices if device_name == d.name]
@@ -34,7 +35,8 @@ def _find_keyboard_device(device_path: str, device_name: str) -> evdev.InputDevi
     elif len(filtered_devices) > 1:
         log.warn('More than one possible device found. Choosing the last one.'
                  ' If it is not the right one, specify it from the list below:')
-        log.warn('\n' + '\n'.join([d.path + ' - ' + d.name for d in filtered_devices]))  # type: ignore
+        # type: ignore
+        log.warn('\n' + '\n'.join([d.path + ' - ' + d.name for d in filtered_devices]))
     return filtered_devices[-1]
 
 
@@ -43,10 +45,10 @@ class KeyboardListener:
     If no device is specified, it tries to figure out the only keyboard device available (and raises an error if it can't tell).
     It must be supplied with a keyboard_robot to re-send intercepted events to the system.
     """
+
     def __init__(self, keyboard_robot: KeyboardRobot) -> None:
-        self.keyboard_robot = keyboard_robot
+        self.suppressed_buffer = KeyboardListener.EventBuffer(keyboard_robot)
         self.controllers: list[KeyController] = []
-        self.buffered_events: list[KeyboardEvent] = []
 
     def connect(self, device_path: str = '', device_name: str = ''):
         log.info('STARTING KEYBOARD LISTENER')
@@ -69,6 +71,21 @@ class KeyboardListener:
 
         log.info('ENDING KEYBOARD LISTENER')
 
+    class EventBuffer:
+        def __init__(self, keyboard_robot: KeyboardRobot):
+            self.events: list[KeyboardEvent] = []
+            self.keyboard_robot = keyboard_robot
+
+        def add(self, event: KeyboardEvent):
+            self.events.append(event)
+
+        def flush(self, discard: bool):
+            if not discard:
+                for event in self.events:
+                    # log.warn('Replicating events: ', event)
+                    self.keyboard_robot.input_event(event)
+            self.events.clear()
+
     def __listen_event_loop(self, device: evdev.InputDevice):
         for event in device.read_loop():  # type: ignore
             if not isinstance(event, evdev.events.InputEvent) or not event.code \
@@ -77,25 +94,29 @@ class KeyboardListener:
             log.debug('Captured event: ', event)
             event = KeyboardEvent.from_evdev(event)
             log.debug('Converted to: ', event)
-            self.buffered_events.append(event)
-            controller_results: list[EventResult] = []
-            for controller in self.controllers:
-                controller_results.append(controller.handle_event(event))
-            log.debug('Controller results: ', controller_results)
-            self.__handle_results(controller_results)
+            self.suppressed_buffer.add(event)
+            controllers_expecting_event = [
+                controller for controller in self.controllers if controller.check_expected_event(event)]
 
-    def __handle_results(self, controller_results: list[EventResult]):
-        if all(result == EventResult.NO_ACTION for result in controller_results) \
-                or EventResult.ACTION_PROPAGATE in controller_results:  # Propagation has priority if mixed results.
-            for event in self.buffered_events:
-                self.keyboard_robot.input_event(event)
-            self.buffered_events.clear()
-        elif EventResult.ACTION_SUPPRESS in controller_results:
-            self.buffered_events.clear()
-#       elif EventResult.POSSIBLE_ACTION in controller_results:
-#           pass
-# When there is a POSSIBLE_ACTION ongoing, but no action was triggered, the events keep getting buffered.
+            # Unless there are suppressing controllers expecting this event (and only them),
+            # we immediately replicate/propagate the buffered events.
+            if not controllers_expecting_event or any(controller.propagate for controller in controllers_expecting_event):
+                self.suppressed_buffer.flush(discard=False)
+
+            # If there is a suppressing controller being triggered, we can discard the buffered events.
+            elif controllers_expecting_event and any(controller.next_expected_event_index == 0 for controller in controllers_expecting_event):
+                self.suppressed_buffer.flush(discard=True)
+
+            for controller in controllers_expecting_event:
+                controller.handle_event(event)
 
     def add_controller(self, controller: KeyController):
         log.debug(f'Registering controller {type(controller)}')
+
+        for already_registered in self.controllers:
+            if already_registered.trigger_events[0] == controller.trigger_events[0] and \
+                    already_registered.propagate != controller.propagate:
+                log.error('Conflicting controllers: There are at least 2 different controllers associated with a same subset of events, '
+                          f'but different propagation policies. Target event: {controller.trigger_events[0]}. Aborting...')
+                exit(1)
         self.controllers.append(controller)

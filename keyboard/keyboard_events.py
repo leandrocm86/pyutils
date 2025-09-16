@@ -64,6 +64,7 @@ class KeyboardEvent:
     # Dictionary to map text to its respective key code.
     # https://community.bistudio.com/wiki/DIK_KeyCodes
     dictionary: dict[str, int] = {
+        "␈": 14,  # Backspace symbol
         "1": 2,
         "2": 3,
         "3": 4,

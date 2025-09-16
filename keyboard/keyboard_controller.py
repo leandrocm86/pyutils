@@ -1,4 +1,3 @@
-from enum import Enum
 from abc import ABC, abstractmethod
 from time import sleep, time
 from .. import log, system
@@ -6,17 +5,23 @@ from .keyboard_robot import KeyboardRobot
 from .keyboard_events import EventType, KeyboardEvent
 
 
-class EventResult(Enum):
-    """Identifies the possible results of the processing of a keyboard event by a keyboard controller.
-    NO_ACTION: Means the event is irrelevant and is not part of any action trigger.
-    POSSIBLE_ACTION: Means the event is part of an action trigger that might get completed in following events.
-    ACTION_SUPPRESS: Means the event triggered an action and the triggers must be suppresed to the system.
-    ACTION_PROPAGATE: Means the event triggered an action but the triggers can propagate to the system.
-    """
-    NO_ACTION = 0
-    POSSIBLE_ACTION = 1
-    ACTION_SUPPRESS = 2
-    ACTION_PROPAGATE = 3
+# class EventResult(Enum):
+#     """Identifies the possible results of the processing of a keyboard event by a keyboard controller.
+#     NO_ACTION: Means the event is irrelevant and is not part of any action trigger.
+#     POSSIBLE_ACTION_SUPPRESS: Means the event is part of a suppressing action trigger that might get completed in following events.
+#     POSSIBLE_ACTION_PROPAGATE: Means the event is part of a propagating action trigger that might get completed in following events.
+#     ACTION_SUPPRESS: Means the event triggered an action and the triggers must be suppresed to the system.
+#     ACTION_PROPAGATE: Means the event triggered an action but the triggers can propagate to the system.
+#     """
+#     NO_ACTION = 0
+#     POSSIBLE_ACTION_SUPPRESS = 1
+#     POSSIBLE_ACTION_PROPAGATE = 2
+#     ACTION_SUPPRESS = 3
+#     ACTION_PROPAGATE = 4
+
+#     def accepts_propagation(self) -> bool:
+#         """Returns True if the result allows the event to be propagated to the system."""
+#         return self in (EventResult.NO_ACTION, EventResult.POSSIBLE_ACTION_PROPAGATE, EventResult.ACTION_PROPAGATE)
 
 
 class ActionExecutor(ABC):
@@ -41,7 +46,7 @@ class KeyController(ABC):
         self.action = action
         self.propagate = propagate
 
-    def _check_expected_event(self, event: KeyboardEvent) -> bool:
+    def check_expected_event(self, event: KeyboardEvent) -> bool:
         """Checks if the given event matches the next expected event in the controller's trigger sequence.
         It also updates the next expected event index accordingly.
         Returns True if the event matches the expected one, False otherwise.
@@ -56,17 +61,12 @@ class KeyController(ABC):
             self.next_expected_event_index = 0
             return False
 
-    def handle_event(self, event: KeyboardEvent) -> EventResult:
+    def handle_event(self, event: KeyboardEvent):
         """Default implementation for event handling to be called by the KeyboardListener at each event.
-        It checks if the sequence of last events match the trigger events needed to execute an action.
-        Returns the result of the event processing, indicating to the listener what to do with the original events.
+        It checks if the sequence of last events matched the trigger events needed to execute an action.
         """
-        if self._check_expected_event(event):
-            if self.next_expected_event_index == 0:
-                self.action.execute()
-                return EventResult.ACTION_PROPAGATE if self.propagate else EventResult.ACTION_SUPPRESS
-            return EventResult.POSSIBLE_ACTION
-        return EventResult.NO_ACTION
+        if self.next_expected_event_index == 0:
+            self.action.execute()
 
 
 # ===== COMMON KEY CONTROLLERS: =====
@@ -76,7 +76,7 @@ class TextMacroAction(ActionExecutor):
     Each character in the given macro_text is searched in KeyboardEvent's dictionary, and two events are generated with its code (down and up).
     If the character is uppercase, additional shift events (up and down) are generated surrounding the character's (lowercase form) events.
     Additionally, if the character is a special character (present in shift_dictionary), the shift events are also generated for it.
-    Notice that for this controller to work as intended, each character (1 letter) must correspond to a code in KeyboardEvent.dictionary or KeyboardEvent.shift_dictionary.
+    IMPORTANT: For this controller to work as intended, each character (1 letter) must correspond to a code in KeyboardEvent.dictionary or KeyboardEvent.shift_dictionary.
     """
     def __init__(self, keyboard_robot: KeyboardRobot, macro_text: str):
         self.keyboard_robot = keyboard_robot
@@ -91,7 +91,7 @@ class TextMacroAction(ActionExecutor):
                 self.macro_sequence += KeyboardEvent.from_dictionary_tap(char)
 
     def execute(self) -> None:
-        log.debug('Typing macro text: ', self.macro_sequence)
+        log.info('Typing macro text: ', self.macro_sequence)
         for macro_event in self.macro_sequence:
             self.keyboard_robot.input_event(macro_event)
             sleep(0.01)
@@ -190,17 +190,14 @@ class DoubleTapController(KeyController):
         self.repetition_time = repetition_time
         self.last_tap_timestamp = 0
 
-    def handle_event(self, event: KeyboardEvent) -> EventResult:
-        if self._check_expected_event(event):
-            if self.next_expected_event_index == 0:
-                if time() - self.last_tap_timestamp < self.repetition_time:
-                    self.action.execute()
-                    return EventResult.ACTION_PROPAGATE if self.propagate else EventResult.ACTION_SUPPRESS
-                else:
-                    self.last_tap_timestamp = time()
-                    return EventResult.POSSIBLE_ACTION
-            return EventResult.POSSIBLE_ACTION
-        return EventResult.NO_ACTION
+    def handle_event(self, event: KeyboardEvent):
+        if self.next_expected_event_index == 0:
+            if time() - self.last_tap_timestamp < self.repetition_time:
+                # log.warn('Executing double-tap action. Expected actions: ', self.trigger_events)
+                self.action.execute()
+            else:
+                # log.warn('First tap detected. Waiting for second tap...')
+                self.last_tap_timestamp = time()
 
 
 # class SingleToChar(KeyController):

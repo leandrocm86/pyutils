@@ -6,6 +6,8 @@ import shutil
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
+from .log import LOG
+
 StrPath = Path | str
 
 
@@ -196,7 +198,7 @@ def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
     ext = os.path.splitext(file_path)[1].lower()
     out = str(output_dir) if output_dir else 'the same folder'
 
-    print(f"Extracting {file_path} to {out}")
+    LOG.info(f"Extracting {file_path} to {out}, {preserve_structure=}")
 
     if ext == '.tar' or ext == '.tar.gz':
         return extract_tar_file(file_path, output_dir, preserve_structure)
@@ -234,6 +236,7 @@ def extract_tar_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
             if member.isfile():
                 extracted_paths.append(os.path.join(output_dir, member.name))
 
+    LOG.info(f"Extracted tar file at {extracted_paths}")
     return extracted_paths
 
 
@@ -259,8 +262,10 @@ def extract_zip_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
                     zip_ref.extract(file, path=output_dir)
         for file in zip_ref.namelist():
             if not file.endswith('/'):  # Exclude directories
-                extracted_paths.append(os.path.join(output_dir, file))
+                safe_name = file.lstrip(os.sep)  # remove leading slashes
+                extracted_paths.append(os.path.join(output_dir, safe_name))
 
+    LOG.info(f"Extracted zip file at {extracted_paths}")
     return extracted_paths
 
 
@@ -278,6 +283,8 @@ def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None) ->
         decompressed_file_path = os.path.join(output_dir, file_name)
         with open(decompressed_file_path, 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)  # type: ignore
+
+        LOG.info(f"Extracted gz file at {decompressed_file_path}")
         return decompressed_file_path
 
 

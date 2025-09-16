@@ -113,11 +113,11 @@ class TestPathOk:
         """Test checking directory permissions"""
         # Successful case - directory with all permissions
         valpath(WRX_DIR, can_read_if_exists=True,
-               can_modify_if_exists=True, can_execute_if_exists=True)
+                can_modify_if_exists=True, can_execute_if_exists=True)
 
         # Successful case - directory with readonly and execute permissions
         valpath(WRX_DIR_RX_SUBDIR, can_read_if_exists=True,
-               can_modify_if_exists=False, can_execute_if_exists=True)
+                can_modify_if_exists=False, can_execute_if_exists=True)
 
         # Error case - expecting directory to be writable when it's not
         with pytest.raises(InvalidContractError, match="Invalid write path permissions"):
@@ -127,10 +127,12 @@ class TestPathOk:
         """Test checking if we can create a file if it doesn't exist"""
 
         # Successful case - we can create file in writable directory
-        valpath(WRX_DIR_NON_EXISTENT, exists=False, can_create_if_not_exists=True)
+        valpath(WRX_DIR_NON_EXISTENT, exists=False,
+                can_create_if_not_exists=True)
 
         # Successful case - we can't create file in read-only directory
-        valpath(WRX_DIR_RX_SUBDIR / 'new_file.txt', exists=False, can_create_if_not_exists=False)
+        valpath(WRX_DIR_RX_SUBDIR / 'new_file.txt',
+                exists=False, can_create_if_not_exists=False)
 
         # Successful case - already existing file (must not raise any error)
         valpath(WRX_DIR_WRX_FILE, can_create_if_not_exists=False)
@@ -139,12 +141,14 @@ class TestPathOk:
         # Error case - can't create file in read-only directory
         non_existent_file_in_rx_dir = WRX_DIR_RX_SUBDIR / 'new_file.txt'
         with pytest.raises(InvalidContractError, match="Invalid write path permissions for parent"):
-            valpath(non_existent_file_in_rx_dir, exists=False, can_create_if_not_exists=True)
+            valpath(non_existent_file_in_rx_dir, exists=False,
+                    can_create_if_not_exists=True)
 
         # Error case - parent directory doesn't exist
         deep_non_existent = WRX_DIR_NON_EXISTENT / "new_file.txt"
         with pytest.raises(InvalidContractError, match="Parent .* doesn't even exist"):
-            valpath(deep_non_existent, exists=False, can_create_if_not_exists=True)
+            valpath(deep_non_existent, exists=False,
+                    can_create_if_not_exists=True)
 
     def test_match(self):
         """Test checking if a path matches a pattern"""
@@ -160,7 +164,8 @@ class TestPathOk:
         """Test checking if a path fully matches a pattern"""
 
         # Successful case - path fully matches pattern
-        valpath(Path('/grandparent/parent/dir/file.txt'), full_match='/*/*/*/*.txt')
+        valpath(Path('/grandparent/parent/dir/file.txt'),
+                full_match='/*/*/*/*.txt')
 
         # Error case - path doesn't fully match pattern (subdirs are not included in '*')
         with pytest.raises(InvalidContractError, match="Invalid path: expected full match"):
@@ -188,17 +193,17 @@ class TestPathOk:
         """Test checking multiple conditions at once"""
         # Successful case - multiple conditions pass
         valpath(WRX_DIR_WRX_FILE,
-               exists=True,
-               is_dir=False,
-               can_read_if_exists=True,
-               can_modify_if_exists=True,
-               can_execute_if_exists=True)
+                exists=True,
+                is_dir=False,
+                can_read_if_exists=True,
+                can_modify_if_exists=True,
+                can_execute_if_exists=True)
 
         # Error case - one condition fails among many
         with pytest.raises(InvalidContractError, match="Invalid write path permissions"):
             valpath(WRX_DIR_RX_FILE,
-                   exists=True,
-                   is_dir=False,
-                   can_read_if_exists=True,
-                   can_modify_if_exists=True,  # This should fail
-                   can_execute_if_exists=False)
+                    exists=True,
+                    is_dir=False,
+                    can_read_if_exists=True,
+                    can_modify_if_exists=True,  # This should fail
+                    can_execute_if_exists=False)

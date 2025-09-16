@@ -84,4 +84,3 @@ def test_iscoll_custom():
 
     with pytest.raises(ck.InvalidContractError):
         ck.valseq([0, 1, 2], int, custom=lambda s: s[1] / s[0] > 1)
-

@@ -41,7 +41,6 @@ class CustomFormatter(logging.Formatter):
 #    f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
 #    datefmt='%d %b %H:%M:%S')
 
-LOG.setLevel(LOG_LEVEL_NUMBER)
 
 if LOG_FILENAME:
     file_handler = logging.FileHandler(LOG_FILENAME)
@@ -53,23 +52,26 @@ elif SYSTEMD:
     from types import MappingProxyType
     # Override mapping: INFO (6 on journald) to 5 (notice),
     # to distinguish from the default level 6 for stdout messages.
-    journal.JournaldLogHandler.LEVELS = MappingProxyType({
+    # Also remap ERROR (3) to CRITICAL (2) to highlight user errors better.
+    journal.JournalHandler.LEVELS = MappingProxyType({
         logging.CRITICAL: 2,
         logging.DEBUG: 7,
         logging.FATAL: 0,
-        logging.ERROR: 3,
-        logging.INFO: 5,  # 👈 remap INFO → NOTICE (5)
+        logging.ERROR: 2,  # 👈 remap ERROR(3) → CRITICAL (2)
+        logging.INFO: 5,  # 👈 remap INFO(6) → NOTICE (5)
         logging.NOTSET: 16,
         logging.WARNING: 4,
     })
 
-    LOG.addHandler(journal.JournaldLogHandler(SYSTEMD))
+    LOG.addHandler(journal.JournalHandler(SYSLOG_IDENTIFIER=SYSTEMD))
     LOG.debug(f'Added journald handler for logger with level {LOG_LEVEL_NAME}')
 else:
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(CustomFormatter(colored=True))
     LOG.addHandler(stream_handler)
     LOG.debug(f'Added stream handler for logger with level {LOG_LEVEL_NAME}')
+
+LOG.setLevel(LOG_LEVEL_NUMBER)
 
 
 def _concat(*args: tuple[Any, ...]) -> str:

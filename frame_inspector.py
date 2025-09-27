@@ -117,7 +117,7 @@ class FrameInspector(App[None]):
         self.frames = self._extract_frames()
         self.selected_node = None
         self.is_mobile_layout = True
-        self.update_layout()
+        # DON'T call self.update_layout() here - it will be called in on_mount()
 
     def _extract_frames(self) -> list[dict[str, Any]]:
         """Extract all frames from the traceback"""
@@ -167,6 +167,8 @@ class FrameInspector(App[None]):
     def on_mount(self) -> None:
         """Setup the app when it starts"""
         self.main_container = self.query_one("#main-container")
+        # Now it's safe to update the layout since the app is mounted
+        self.update_layout()
         self.populate_tree()
 
     def update_layout(self) -> None:

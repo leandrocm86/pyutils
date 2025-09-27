@@ -30,14 +30,16 @@ def setpostmortem():
 
     try:
         import bpython  # type: ignore
-    except ImportError:
+    except ImportError as e:
+        LOG.warning("Bpython not available: %s", e)
         bpython = None  # Handle case where bpython is not installed
 
     try:
         # Import the frame inspector (adjust the import path as needed)
         from frame_inspector import inspect_frames  # type: ignore
         frame_inspector_available = True
-    except ImportError:
+    except ImportError as e:
+        LOG.warning("Frame inspector not available: %s", e)
         frame_inspector_available = False
 
     def exception_handler(exc_type: type[BaseException],
@@ -52,7 +54,7 @@ def setpostmortem():
         options: list[str] = []
         if frame_inspector_available:
             options.append("i: inspect frames")
-        options.append("y: pdb")
+        options.append("p: pdb")
         if bpython:
             options.append("b: bpython")
         options.append("q: quit (default)")
@@ -68,7 +70,7 @@ def setpostmortem():
                 print(f"Error starting frame inspector: {inspector_error}")
                 print("Falling back to pdb...")
                 pdb.post_mortem(exc_traceback)
-        elif choice == 'y':
+        elif choice == 'p':
             print("Starting post-mortem debugging session with pdb...")
             pdb.post_mortem(exc_traceback)
         elif choice == 'b' and bpython:
@@ -79,7 +81,7 @@ def setpostmortem():
                 tb = tb.tb_next
             frame = tb.tb_frame
             # Pass the frame's locals to bpython
-            bpython.embed(locals_=frame.f_locals)  # type: ignore
+            bpython.embed(locals_=dict(frame.f_locals))  # type: ignore
         else:
             print("Skipping debug mode.")
 

@@ -13,9 +13,10 @@ from selenium.common.exceptions import TimeoutException
 
 # Drivers alternativos em https://sites.google.com/chromium.org/driver/
 # Instalados com snap install chromium no ubuntu (chromium é só via snap agora)
-# DEFAULT_DRIVER_PATH = '/usr/bin/chromedriver'
-DEFAULT_DRIVER_PATH = '/snap/bin/chromium.chromedriver'
-# BIN_PATH = '/usr/bin/chromium-browser'
+DEFAULT_DRIVER_PATH = '/usr/bin/chromedriver'
+SNAP_DRIVER_PATH = '/snap/bin/chromium.chromedriver'
+DEFAULT_BIN_PATH = '/usr/bin/chromium-browser'
+SNAP_BIN_PATH = '/snap/bin/chromium'
 
 T = TypeVar("T")
 
@@ -144,9 +145,18 @@ class SeleniumElement:
     def send_keys(self, keys: str):
         self.webelement.send_keys(keys)
 
+    def __str__(self) -> str:
+        id = self.attr('id')
+        tag = self.webelement.tag_name
+        return f'{tag}#{id if id else "-"}'
+
+    def __repr__(self) -> str:
+        return str(self)
+
 
 class SeleniumDriver:
     def __init__(self, driver_path: str | None = None,
+                 bin_path: str | None = None,
                  logfunc: Callable[[str], None] = print,
                  options: ChromiumOptions | None = None):
         """ IF NO DRIVER PATH IS SPECIFIED, CHROMEDRIVERMANAGER IS USED """
@@ -155,7 +165,8 @@ class SeleniumDriver:
         self.logfunc('Starting Selenium driver')
         if not options:
             options = webdriver.ChromeOptions()
-        #   options.binary_location = BIN_PATH
+            if bin_path:
+                options.binary_location = bin_path
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument('--ignore-certificate-errors')
@@ -167,9 +178,11 @@ class SeleniumDriver:
 
         service = None
         if not driver_path:
+            logfunc('No driver specified. Using ChromeDriverManager...')
             from webdriver_manager.chrome import ChromeDriverManager
             service = Service(ChromeDriverManager().install())
         else:
+            logfunc(f'Using driver path: {driver_path}')
             service = Service(executable_path=driver_path)
         self.driver = webdriver.Chrome(service=service, options=options)
         self.logfunc('Selenium driver loaded')
@@ -187,7 +200,7 @@ class SeleniumDriver:
 
     def get(self, url: str, timeout=300):
         self.driver.set_page_load_timeout(timeout)
-        self.logfunc('Retrieving', url)
+        self.logfunc('Retrieving ' + url)
         self.driver.get(url)
 
     def by_css(self, css_selector: str, timeout: int = 10) -> SeleniumElement:

@@ -23,7 +23,7 @@ class BaseArg(Generic[T], ABC):
         required: Optional[bool] = None,
         default: T | Optional[T] | Sequence[T] = None,
         choices: Optional[list[T]] = None,
-        validation: Optional[Callable[[T], bool]] = None,
+        validation: Optional[Callable[[T], (Any)]] = None,
         help: str = "",
     ):
         self._names = names
@@ -68,7 +68,7 @@ class Arg(BaseArg[T]):
         type: Type[T],
         default: Optional[T] = None,
         choices: Optional[list[T]] = None,
-        validation: Optional[Callable[[T], bool]] = None,
+        validation: Optional[Callable[[T], Any]] = None,
         help: str = "",
     ):
         required = True if default is None else False
@@ -95,7 +95,7 @@ class OptArg(BaseArg[T]):
         *names: str,
         type: Type[T],
         choices: Optional[list[T]] = None,
-        validation: Optional[Callable[[T], bool]] = None,
+        validation: Optional[Callable[[T], Any]] = None,
         help: str = "",
     ):
         super().__init__(*names, type=type, required=False, default=None, choices=choices, validation=validation, help=help)
@@ -140,7 +140,7 @@ class VarArgs(BaseArg[T]):
         default: Optional[Sequence[T]] = None,
         nargs: Optional[str] = None,
         choices: Optional[list[T]] = None,
-        validation: Optional[Callable[[T], bool]] = None,
+        validation: Optional[Callable[[T], Any]] = None,
         help: str = "",
     ):
         super().__init__(*names, type=type, default=default,
@@ -215,9 +215,9 @@ class CliParser:
                     try:
                         if isinstance(att, VarArgs):
                             for value in parsed_value:
-                                if not att._validation(value):
+                                if not bool(att._validation(value)):
                                     raise ValueError(f"Invalid value for argument {att._parsed_name}: {str(value)[:50]}")
-                        elif not att._validation(parsed_value):
+                        elif not bool(att._validation(parsed_value)):
                             parser.error(f"Invalid value for argument {att._parsed_name}")
                     except Exception as e:
                         parser.error(str(e))

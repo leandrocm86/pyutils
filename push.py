@@ -4,6 +4,7 @@ from os import environ
 
 NUC_URL = 'http://nuc/'
 NUC_EXTERNAL_URL = 'http://www.portao.top/'
+PUSH_EXTERNAL_URL = environ.get('PUSH_EXTERNAL_URL', '')
 WARN_HEADERS = {"Priority": "urgent", "Tags": "warning"}
 
 
@@ -13,8 +14,7 @@ def push(msg: str, url=NUC_URL, warning=False):
 
 
 def push_external(msg: str, url=NUC_EXTERNAL_URL, warning=False):
-    from mods.chaveiro import decrypt_aes
-    PUSH_EXTERNAL_URL = decrypt_aes(environ['PUSH_EXTERNAL_URL_PYTHONS'], environ['CHAVEIRO_PYTHONS'])
+    assert PUSH_EXTERNAL_URL, 'Variável de ambiente PUSH_EXTERNAL_URL não definida!'
     _push(msg, url, PUSH_EXTERNAL_URL, warning)
 
 
@@ -30,6 +30,6 @@ def _push(msg: str, click_url: str, push_url: str, warning: bool):
 if __name__ == '__main__':
     import sys
     msg = sys.argv[1]
-    url = sys.argv[2]
+    url = sys.argv[2] if len(sys.argv) > 2 else PUSH_EXTERNAL_URL
     _push(msg, '',  url, False)
 

@@ -139,7 +139,7 @@ def __print_frame_info(frame: FrameType, line_number: int, frame_number: int, ma
         for name, value in sorted(locals_dict.items()):
             try:
                 # Use pstr for better formatting of complex objects
-                value_str = pstr(value, colored=ExceptionsConfig.colored_print, maxlen=20, maxdepth=2)
+                value_str = pstr(value, colored=ExceptionsConfig.colored_print, maxlen=10, maxdepth=3)
                 # Truncate very long values
                 print(f"  {name:>{name_padding}} = {value_str}")
             except Exception as e:

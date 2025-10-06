@@ -84,7 +84,11 @@ def pstr(obj: object, maxlen: int = 50, maxdepth: int = 3,
             return primstr
         if maxlen and depth < maxdepth:
             if not isinstance(item, Iterable):
-                if hasattr(item, '__dict__'):
+                # Non-primitive and non-collection objects may have custom __str__.
+                # If so, we use it and format it as a primitive string.
+                if type(item).__str__ is not object.__str__ and (primstr := primitive_str(str(item))):
+                    return primstr
+                elif hasattr(item, '__dict__'):
                     its = item.__dict__
                 else:
                     return str(item)

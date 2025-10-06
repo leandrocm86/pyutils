@@ -64,8 +64,9 @@ elif SYSTEMD:
     })
 
     LOG.addHandler(journal.JournaldLogHandler(SYSTEMD))
-    LOG.debug(f'Added journald handler for logger with level {LOG_LEVEL_NAME}')
-else:
+    LOG.debug(f'Added journald handler for logger {SYSTEMD} with level {LOG_LEVEL_NAME}')
+
+if not (LOG_FILENAME or SYSTEMD) or sys.stdout.isatty():
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(CustomFormatter(colored=True))
     LOG.addHandler(stream_handler)

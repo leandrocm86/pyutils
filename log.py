@@ -16,6 +16,7 @@ if LOG_LEVEL_NUMBER == -1:
     raise ValueError(f'Nível de log inválido: {LOG_LEVEL_NAME}')
 
 LOG = logging.getLogger()
+LOG.setLevel(LOG_LEVEL_NUMBER)
 
 
 class CustomFormatter(logging.Formatter):
@@ -41,19 +42,20 @@ class CustomFormatter(logging.Formatter):
 #    f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
 #    datefmt='%d %b %H:%M:%S')
 
+handlers_msgs: list[str] = []
 
 if LOG_FILENAME:
     file_handler = logging.FileHandler(LOG_FILENAME)
     file_handler.setFormatter(CustomFormatter())
     LOG.addHandler(file_handler)
-    LOG.debug(f'Added file handler for logger with level {LOG_LEVEL_NAME} on file {LOG_FILENAME}')
-elif SYSTEMD:
+    handlers_msgs.append(f'Added file handler for logger with level {LOG_LEVEL_NAME} on file {LOG_FILENAME}')
+if SYSTEMD:
     from systemd import journal
     from types import MappingProxyType
     # Override mapping: INFO (6 on journald) to 5 (notice),
     # to distinguish from the default level 6 for stdout messages.
     # Also remap ERROR (3) to CRITICAL (2) to highlight user errors better.
-    journal.JournalHandler.LEVELS = MappingProxyType({
+    LEVELS = MappingProxyType({
         logging.CRITICAL: 2,
         logging.DEBUG: 7,
         logging.FATAL: 0,
@@ -62,17 +64,24 @@ elif SYSTEMD:
         logging.NOTSET: 16,
         logging.WARNING: 4,
     })
+    try:
+        journal.JournalHandler.LEVELS = LEVELS
+        LOG.addHandler(journal.JournalHandler(SYSLOG_IDENTIFIER=SYSTEMD))
+        handlers_msgs.append(f'Added JournalHandler for logger {SYSTEMD} with level {LOG_LEVEL_NAME}')
+    except Exception:
+        journal.JournaldLogHandler.LEVELS = LEVELS
+        LOG.addHandler(journal.JournaldLogHandler(SYSTEMD))
+        handlers_msgs.append(f'Added JournaldLogHandler for logger {SYSTEMD} with level {LOG_LEVEL_NAME}')
 
 if not (LOG_FILENAME or SYSTEMD) or sys.stdout.isatty():
-    LOG.addHandler(journal.JournalHandler(SYSLOG_IDENTIFIER=SYSTEMD))
-    LOG.debug(f'Added journald handler for logger {SYSTEMD} with level {LOG_LEVEL_NAME}')
-else:
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(CustomFormatter(colored=True))
     LOG.addHandler(stream_handler)
-    LOG.debug(f'Added stream handler for logger with level {LOG_LEVEL_NAME}')
+    handlers_msgs.append(f'Added stream handler for logger with level {LOG_LEVEL_NAME}')
 
-LOG.setLevel(LOG_LEVEL_NUMBER)
+
+print('. '.join(handlers_msgs))
+LOG.debug('. '.join(handlers_msgs))
 
 
 def _concat(*args: tuple[Any, ...]) -> str:

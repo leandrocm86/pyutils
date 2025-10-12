@@ -3,10 +3,11 @@ import tarfile
 import zipfile
 import gzip
 import shutil
+import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from .log import LOG
+from utils.log import LOG
 
 StrPath = Path | str
 
@@ -194,13 +195,18 @@ def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
     By default, the folder structure inside the compressed file is preserved (that can be changed with preserve_structure).
     Returns a list with the extracted files' paths.
     """
+    assert (match := re.search(r'(\.tar\.gz|\.tar|\.zip|\.gz)$', str(file_path))), \
+           f"Unsupported file extension: {file_path}"
 
-    ext = os.path.splitext(file_path)[1].lower()
+    ext = match.group(1).lower()
     out = str(output_dir) if output_dir else 'the same folder'
 
     LOG.info(f"Extracting {file_path} to {out}, {preserve_structure=}")
 
-    if ext == '.tar' or ext == '.tar.gz':
+    if ext == '.tar.gz':
+        extracted_gz = extract_gz_file(file_path, output_dir)
+        return extract_tar_file(extracted_gz, output_dir, preserve_structure)
+    elif ext == '.tar':
         return extract_tar_file(file_path, output_dir, preserve_structure)
     elif ext == '.zip':
         return extract_zip_file(file_path, output_dir, preserve_structure)
@@ -289,7 +295,7 @@ def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None) ->
 
 
 if __name__ == "__main__":
-    from mods.cliparse import CliParser, OptArg, VarArgs, FlagArg
+    from utils.cliparse import CliParser, OptArg, VarArgs, FlagArg
 
     class UnpackerArgs(CliParser):
         file_paths = VarArgs('file_paths', nargs='+', help='Path to the compressed file to unpack', type=Path,

@@ -1,5 +1,5 @@
 from typing import Any
-from mods.pstr import pstr, __color, __COLOR_END  # type: ignore
+from utils.pstr import pstr, __color, __COLOR_END  # type: ignore
 
 
 def test_pstr_lists():

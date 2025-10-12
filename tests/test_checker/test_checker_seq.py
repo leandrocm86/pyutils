@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Union
 import pytest
-import mods.type_checker as ck
+import utils.type_checker as ck
 
 
 class Person:

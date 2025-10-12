@@ -1,5 +1,5 @@
 import pytest
-from mods.mut import InvalidMutationError, mut
+from utils.mut import InvalidMutationError, mut
 
 
 class Person:

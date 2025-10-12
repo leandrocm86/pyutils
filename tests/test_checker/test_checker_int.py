@@ -1,5 +1,5 @@
 import pytest
-from mods.type_checker import valint, InvalidContractError
+from utils.type_checker import valint, InvalidContractError
 
 
 def test_isint_valid():

@@ -1,5 +1,5 @@
 import pytest
-import mods.type_checker as ck
+import utils.type_checker as ck
 
 
 def test_checker_str_valid():

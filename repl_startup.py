@@ -1,4 +1,4 @@
-from mods.commons_cli import *
-from mods.commons_type import *
-from mods.exceptions import *
+from utils.commons_cli import *
+from utils.commons_type import *
+from utils.exceptions import *
 print('Dev mods loaded')

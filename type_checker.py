@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import get_origin, get_args, Any, Callable, Optional, Type, TypeVar, Union, Tuple
 import typing
 from re import Pattern, compile
-from mods.pstr import pstr
+from utils.pstr import pstr
 import os
 import sys
 

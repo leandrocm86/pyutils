@@ -9,9 +9,9 @@ from collections import defaultdict  # type: ignore  # noqa
 from pathlib import Path  # type: ignore  # noqa
 from typing import Callable  # type: ignore  # noqa
 
-from mods import type_checker  # noqa
-from mods.type_checker import check_type, valint, valbool, valfloat, valstr, valseq, valset, valmap, valpath, valobj  # type: ignore  # noqa
-from mods.mut import mut  # type: ignore  # noqa
+from utils import type_checker  # noqa
+from utils.type_checker import check_type, valint, valbool, valfloat, valstr, valseq, valset, valmap, valpath, valobj  # type: ignore  # noqa
+from utils.mut import mut  # type: ignore  # noqa
 
 
 T = TypeVar('T')

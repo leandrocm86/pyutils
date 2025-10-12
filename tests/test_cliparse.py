@@ -1,7 +1,7 @@
 # tests/test_cliparse.py
 from __future__ import annotations
 import pytest
-from mods.cliparse import CliParser, Arg, FlagArg, OptArg, VarArgs
+from utils.cliparse import CliParser, Arg, FlagArg, OptArg, VarArgs
 import sys
 
 

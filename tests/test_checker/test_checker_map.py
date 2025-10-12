@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Optional
 import pytest
-import mods.type_checker as ck
+import utils.type_checker as ck
 
 
 def test_ismap_valid():

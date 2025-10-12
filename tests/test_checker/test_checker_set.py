@@ -1,6 +1,6 @@
 from collections.abc import Set
 import pytest
-import mods.type_checker as ck
+import utils.type_checker as ck
 
 
 def test_iscoll_valid():

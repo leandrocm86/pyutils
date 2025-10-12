@@ -2,7 +2,7 @@ import pytest
 import sys
 from pathlib import Path
 
-from mods.type_checker import valpath, InvalidContractError
+from utils.type_checker import valpath, InvalidContractError
 
 # Test paths that must be created previously.
 TEST_BASEPATH = Path(__file__).parent / 'path_examples'

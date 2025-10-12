@@ -1,7 +1,7 @@
 import pytest
 from typing import Union, Optional, List, Dict, Set, Tuple, Literal, Sequence, Mapping
 from pathlib import Path
-from mods.type_checker import check_type
+from utils.type_checker import check_type
 
 # mods/test_checker.py
 

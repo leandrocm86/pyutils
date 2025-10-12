@@ -1,5 +1,5 @@
 import pytest
-from mods.type_checker import valfloat, InvalidContractError
+from utils.type_checker import valfloat, InvalidContractError
 
 
 def test_isfloat_valid():

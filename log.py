@@ -116,7 +116,7 @@ def error(*args: Any, exception: bool = False):
 
 @dataclass
 class ExceptionsConfig:
-    max_frames: int = 3
+    max_frames: int = 1 if sys.stdout.isatty() else 3
     colored_print: bool = sys.stdout.isatty()
     suppress_default_stacktrace: bool = False
 

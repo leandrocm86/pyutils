@@ -93,25 +93,37 @@ def _concat(*args: tuple[Any, ...]) -> str:
 
 def debug(*args: Any):
     if LOG_LEVEL_NUMBER == logging.DEBUG:
-        msg = _concat(*args)
-        LOG.debug(msg)
+        if len(args) > 1 and '%' in args[0]:
+            LOG.debug(*args)
+        else:
+            msg = _concat(*args)
+            LOG.debug(msg)
 
 
 def info(*args: Any):
     if LOG_LEVEL_NUMBER <= logging.INFO:
-        msg = _concat(*args)
-        LOG.info(msg)
+        if len(args) > 1 and '%' in args[0]:
+            LOG.info(*args)
+        else:
+            msg = _concat(*args)
+            LOG.info(msg)
 
 
 def warn(*args: Any):
-    if LOG_LEVEL_NUMBER <= logging.WARNING:
-        msg = _concat(*args)
-        LOG.warning(msg)
+    if len(args) > 1 and '%' in args[0]:
+        LOG.warning(*args)
+    else:
+        if LOG_LEVEL_NUMBER <= logging.WARNING:
+            msg = _concat(*args)
+            LOG.warning(msg)
 
 
 def error(*args: Any, exception: bool = False):
-    msg = _concat(*args)
-    LOG.error(msg, exc_info=exception, stack_info=exception)
+    if len(args) > 1 and '%' in args[0]:
+        LOG.error(*args, exc_info=exception)
+    else:
+        msg = _concat(*args)
+        LOG.error(msg, exc_info=exception, stack_info=exception)
 
 
 @dataclass

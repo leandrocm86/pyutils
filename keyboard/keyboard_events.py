@@ -26,27 +26,37 @@ class KeyboardEvent:
         return cls(KeyboardEvent.dictionary[keylabel], event_type)
 
     @classmethod
-    def from_dictionary_tap(cls, keylabel: str) -> tuple[Self, Self] | tuple[Self, Self, Self, Self]:
-        """Creates a tuple of KeyboardEvents from a dictionary key label for tap (down/up) events.
+    def from_tap(cls, key: str | int) -> tuple[Self, Self] | tuple[Self, Self, Self, Self]:
+        """Creates a tuple of KeyboardEvents from a key (label or code) for tapping (down/up) events.
         If the key is a special character (present in shift_dictionary), it will add 2 more events for shift.
         """
-        if keylabel in KeyboardEvent.shift_dictionary:
-            assert 'shift' in KeyboardEvent.dictionary, "Shift key not found in dictionary. Can't use special characters!"
-            return (
-                cls(KeyboardEvent.dictionary['shift'], EventType.MOV_DOWN),
-                cls(KeyboardEvent.shift_dictionary[keylabel], EventType.MOV_DOWN),
-                cls(KeyboardEvent.shift_dictionary[keylabel], EventType.MOV_UP),
-                cls(KeyboardEvent.dictionary['shift'], EventType.MOV_UP)
-            )
+
+        if isinstance(key, str):
+            if key in KeyboardEvent.shift_dictionary:
+                assert 'shift' in KeyboardEvent.dictionary, "Shift key not found in dictionary. Can't use special characters!"
+                return (
+                    cls(KeyboardEvent.dictionary['shift'], EventType.MOV_DOWN),
+                    cls(KeyboardEvent.shift_dictionary[key], EventType.MOV_DOWN),
+                    cls(KeyboardEvent.shift_dictionary[key], EventType.MOV_UP),
+                    cls(KeyboardEvent.dictionary['shift'], EventType.MOV_UP)
+                )
+            else:
+                return cls.from_dictionary(key, EventType.MOV_DOWN), \
+                    cls.from_dictionary(key, EventType.MOV_UP)
         else:
-            return cls.from_dictionary(keylabel, EventType.MOV_DOWN), \
-                cls.from_dictionary(keylabel, EventType.MOV_UP)
+            return cls(key, EventType.MOV_DOWN), \
+                cls(key, EventType.MOV_UP)
 
     @classmethod
-    def from_dictionary_hold(cls, keylabel: str) -> tuple[Self, Self]:
-        """Creates a tuple of KeyboardEvents from a dictionary key label for hold events."""
-        return cls.from_dictionary(keylabel, EventType.MOV_DOWN), \
-            cls.from_dictionary(keylabel, EventType.MOV_HOLD)
+    def from_hold(cls, key: str | int) -> tuple[Self, Self]:
+        """Creates a tuple of KeyboardEvents from a key (label or code) for hold events."""
+
+        if isinstance(key, str):
+            return cls.from_dictionary(key, EventType.MOV_DOWN), \
+                cls.from_dictionary(key, EventType.MOV_HOLD)
+        else:
+            return cls(key, EventType.MOV_DOWN), \
+                cls(key, EventType.MOV_HOLD)
 
     def __init__(self, keycode: int, event_type: EventType):
         self.keycode = keycode

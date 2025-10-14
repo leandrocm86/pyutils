@@ -1,10 +1,8 @@
 from __future__ import annotations
-# import os
-# import time
 import evdev  # pip install evdev (parece ser linux-only)
 from .. import log
 from .keyboard_controller import KeyController
-from .keyboard_robot import KeyboardRobot
+from .keyboard_robot import KeyboardEvdevRobot, KeyboardPynputRobot
 from .keyboard_events import KeyboardEvent
 
 
@@ -41,16 +39,23 @@ def _find_keyboard_device(device_path: str, device_name: str) -> evdev.InputDevi
 
 
 class KeyboardListener:
-    """Listens to keyboard events from a given device and calls controllers for each event.
-    If no device is specified, it tries to figure out the only keyboard device available (and raises an error if it can't tell).
-    It must be supplied with a keyboard_robot to re-send intercepted events to the system.
+    """Listens to keyboard events when connected to a given device and calls controllers for each event.
+    It must be supplied with a KeyboardEvdevRobot to re-send intercepted events to the system (when using evdev and suppressing events).
+    Pynput shouldn't be used to reproduce suppressed evdev events, because it can't do it reliably.
     """
 
-    def __init__(self, keyboard_robot: KeyboardRobot) -> None:
-        self.suppressed_buffer = KeyboardListener.EventBuffer(keyboard_robot)
+    def __init__(self, keyboard_robot: KeyboardEvdevRobot | None = None) -> None:
+
+        if keyboard_robot:
+            self.suppressed_buffer = KeyboardListener.EventBuffer(keyboard_robot)
+        else:
+            self.suppressed_buffer = None
+
         self.controllers: list[KeyController] = []
 
     def connect(self, device_path: str = '', device_name: str = ''):
+        """If no device is specified, it tries to figure out the only keyboard device available (and raises an error if it can't tell)."""
+
         log.info('STARTING KEYBOARD LISTENER')
         # Wait for the X server to be ready
         # while 'DISPLAY' not in os.environ:
@@ -60,8 +65,11 @@ class KeyboardListener:
 
         device = _find_keyboard_device(device_path, device_name)
 
-        log.info('Grabbing device (its events might be suppressed if the controllers choose so): ', device.name)
-        device.grab()
+        if self.suppressed_buffer:
+            log.warn('Grabbing device (its events might be suppressed if the controllers choose so): ', device.name)
+            device.grab()
+        else:
+            log.warn("Not grabbing device, because it doesn't work well with a pynput robot")
 
         try:
             self.__listen_event_loop(device)
@@ -72,7 +80,7 @@ class KeyboardListener:
         log.info('ENDING KEYBOARD LISTENER')
 
     class EventBuffer:
-        def __init__(self, keyboard_robot: KeyboardRobot):
+        def __init__(self, keyboard_robot: KeyboardEvdevRobot | KeyboardPynputRobot):
             self.events: list[KeyboardEvent] = []
             self.keyboard_robot = keyboard_robot
 
@@ -82,7 +90,6 @@ class KeyboardListener:
         def flush(self, discard: bool):
             if not discard:
                 for event in self.events:
-                    # log.warn('Replicating events: ', event)
                     self.keyboard_robot.input_event(event)
             self.events.clear()
 
@@ -94,24 +101,30 @@ class KeyboardListener:
             log.debug('Captured event: ', event)
             event = KeyboardEvent.from_evdev(event)
             log.debug('Converted to: ', event)
-            self.suppressed_buffer.add(event)
+            if self.suppressed_buffer:
+                self.suppressed_buffer.add(event)
             controllers_expecting_event = [
                 controller for controller in self.controllers if controller.check_expected_event(event)]
 
-            # Unless there are suppressing controllers expecting this event (and only them),
-            # we immediately replicate/propagate the buffered events.
-            if not controllers_expecting_event or any(controller.propagate for controller in controllers_expecting_event):
-                self.suppressed_buffer.flush(discard=False)
+            if self.suppressed_buffer:
 
-            # If there is a suppressing controller being triggered, we can discard the buffered events.
-            elif controllers_expecting_event and any(controller.next_expected_event_index == 0 for controller in controllers_expecting_event):
-                self.suppressed_buffer.flush(discard=True)
+                # Unless there are suppressing controllers expecting this event (and only them),
+                # we immediately replicate/propagate the buffered events.
+                if not controllers_expecting_event or any(controller.propagate for controller in controllers_expecting_event):
+                    self.suppressed_buffer.flush(discard=False)
+
+                # If there is a suppressing controller being triggered, we can discard the buffered events.
+                elif controllers_expecting_event and any(controller.next_expected_event_index == 0 for controller in controllers_expecting_event):
+                    self.suppressed_buffer.flush(discard=True)
 
             for controller in controllers_expecting_event:
                 controller.handle_event(event)
 
     def add_controller(self, controller: KeyController):
         log.debug(f'Registering controller {type(controller)}')
+
+        assert controller.propagate or self.suppressed_buffer, \
+            'Listeners only support suppressing events with evdev robots!'
 
         for already_registered in self.controllers:
             if already_registered.trigger_events[0] == controller.trigger_events[0] and \

@@ -88,5 +88,5 @@ def install_external_libs(*module_names: str):
         except ImportError:
             print(f'WARNING: Required module {modname} is not installed. Will try to install via pip...')
             import sys
-            exec([sys.executable, '-m', 'pip', 'install', modname], ignore_output=True)
+            exec([sys.executable, '-m', 'pip', 'install', modname], ignore_output=True, timeout=120)
             print(f'Module {modname} installed successfully!')

@@ -1,3 +1,5 @@
+# Mais cores em https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT75fjCYt2l_dPGNNJcUj-nCjMSEgaCK1blGJcNR83oz8k47qFsWgF1Hw&s=10
+
 from enum import Enum, auto
 from typing import Callable, Optional
 import shutil

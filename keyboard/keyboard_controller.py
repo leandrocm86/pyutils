@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from time import sleep, time
 from .. import log, system
-from .keyboard_robot import KeyboardRobot
+from .keyboard_robot import KeyboardEvdevRobot, KeyboardPynputRobot
 from .keyboard_events import EventType, KeyboardEvent
 
 
@@ -32,7 +32,7 @@ class ActionExecutor(ABC):
         raise NotImplementedError('All ActionExecutors must implement the execute method.')
 
 
-class KeyController(ABC):
+class KeyController():
     """Base class for keyboard controllers.
     KeyControllers may trigger custom actions when a sequence of events are processed.
     By default, they propagate these events to the system, but they can suppress them with propagate=False.
@@ -69,32 +69,77 @@ class KeyController(ABC):
             self.action.execute()
 
 
-# ===== COMMON KEY CONTROLLERS: =====
+class DoubleTapController(KeyController):
+    """A controller that only triggers an action when a key is double tapped within a given time interval."""
+    def __init__(self, trigger_key: str, repetition_time: float, action: ActionExecutor, propagate: bool = True):
+        KeyController.__init__(self, KeyboardEvent.from_tap(trigger_key), action, propagate)
+        self.repetition_time = repetition_time
+        self.last_tap_timestamp = 0
 
-class TextMacroAction(ActionExecutor):
+    def handle_event(self, event: KeyboardEvent):
+        if self.next_expected_event_index == 0:
+            if time() - self.last_tap_timestamp < self.repetition_time:
+                # log.warn('Executing double-tap action. Expected actions: ', self.trigger_events)
+                self.action.execute()
+            else:
+                # log.warn('First tap detected. Waiting for second tap...')
+                self.last_tap_timestamp = time()
+
+
+# ===== COMMON ACTIONS: =====
+
+
+class TextMacroEvdevAction(ActionExecutor):
     """Used in controllers for text macros, typing each character with 10ms intervals.
     Each character in the given macro_text is searched in KeyboardEvent's dictionary, and two events are generated with its code (down and up).
     If the character is uppercase, additional shift events (up and down) are generated surrounding the character's (lowercase form) events.
     Additionally, if the character is a special character (present in shift_dictionary), the shift events are also generated for it.
     IMPORTANT: For this controller to work as intended, each character (1 letter) must correspond to a code in KeyboardEvent.dictionary or KeyboardEvent.shift_dictionary.
     """
-    def __init__(self, keyboard_robot: KeyboardRobot, macro_text: str):
+    def __init__(self, keyboard_robot: KeyboardEvdevRobot | KeyboardPynputRobot, macro_text: str):
         self.keyboard_robot = keyboard_robot
-        self.macro_sequence: list[KeyboardEvent] = []
+        self.macro_evdev_sequence: list[KeyboardEvent] = []
         for char in macro_text:
             if char.isupper():
-                self.macro_sequence.append(KeyboardEvent.from_dictionary('shift', EventType.MOV_DOWN))
-                self.macro_sequence.append(KeyboardEvent.from_dictionary(char.lower(), EventType.MOV_DOWN))
-                self.macro_sequence.append(KeyboardEvent.from_dictionary(char.lower(), EventType.MOV_UP))
-                self.macro_sequence.append(KeyboardEvent.from_dictionary('shift', EventType.MOV_UP))
+                self.macro_evdev_sequence.append(KeyboardEvent.from_dictionary('shift', EventType.MOV_DOWN))
+                self.macro_evdev_sequence.append(KeyboardEvent.from_dictionary(char.lower(), EventType.MOV_DOWN))
+                self.macro_evdev_sequence.append(KeyboardEvent.from_dictionary(char.lower(), EventType.MOV_UP))
+                self.macro_evdev_sequence.append(KeyboardEvent.from_dictionary('shift', EventType.MOV_UP))
             else:
-                self.macro_sequence += KeyboardEvent.from_dictionary_tap(char)
+                self.macro_evdev_sequence += KeyboardEvent.from_tap(char)
 
     def execute(self) -> None:
-        log.info('Typing macro text: ', self.macro_sequence)
-        for macro_event in self.macro_sequence:
+        for macro_event in self.macro_evdev_sequence:
             self.keyboard_robot.input_event(macro_event)
             sleep(0.01)
+        log.info('Typed macro text with evdev events: %s', self.macro_evdev_sequence)
+
+
+class TextMacroPynputAction(ActionExecutor):
+    """Used in controllers for text macros, delegating the events to pynput"""
+
+    def __init__(self, keyboard_robot: KeyboardPynputRobot, macro_text: str):
+        self.keyboard_robot = keyboard_robot
+        self.macro_text = macro_text
+
+    def execute(self) -> None:
+        self.keyboard_robot.input_text(self.macro_text)
+        log.info('Typed macro text with pynput: %s', self.macro_text)
+
+
+class BackspacePynputAction(ActionExecutor):
+    """Used for hitting one or more backspacess with pynput.
+    This is very useful given the fact that suppressing is not advisable with pynput."""
+
+    def __init__(self, keyboard_robot: KeyboardPynputRobot, times: int):
+        self.keyboard_robot = keyboard_robot
+        self.times = times
+        from pynput.keyboard import Key
+        self.backspacekey = Key.backspace
+
+    def execute(self) -> None:
+        for _ in range(self.times):
+            self.keyboard_robot.controller.tap(self.backspacekey)
 
 
 class MouseAction(ActionExecutor):
@@ -183,152 +228,12 @@ class ToggleProgramAction(ActionExecutor):
             system.exec_async(f'{self.program} &')
 
 
-class DoubleTapController(KeyController):
-    """A controller that only triggers an action when a key is double tapped within a given time interval."""
-    def __init__(self, trigger_key: str, repetition_time: float, action: ActionExecutor, propagate: bool = True):
-        KeyController.__init__(self, KeyboardEvent.from_dictionary_tap(trigger_key), action, propagate)
-        self.repetition_time = repetition_time
-        self.last_tap_timestamp = 0
+class MultipleAction(ActionExecutor):
+    """ Action that groups multiple actions and execute them in order as one """
 
-    def handle_event(self, event: KeyboardEvent):
-        if self.next_expected_event_index == 0:
-            if time() - self.last_tap_timestamp < self.repetition_time:
-                # log.warn('Executing double-tap action. Expected actions: ', self.trigger_events)
-                self.action.execute()
-            else:
-                # log.warn('First tap detected. Waiting for second tap...')
-                self.last_tap_timestamp = time()
+    def __init__(self, actions: list[ActionExecutor]) -> None:
+        self.actions = actions
 
-
-# class SingleToChar(KeyController):
-#     """ Maps a button press to a specific char."""
-#     def __init__(self, key: int, to_char: str):
-#         super().__init__(key)
-#         self.to_char = to_char
-
-#     def handle_release(self, listener: KeyboardListener):
-#         super().handle_release(listener)
-#         keyboard_controller.tap(self.to_char)
-#         return ResultadoEvento.GEROU_ACAO
-
-
-# class DoubleToChar(KeyController):
-#     """ Maps a double button press to a specific char."""
-#     def __init__(self, key: int, to_char):
-#         super().__init__(key)
-#         self.to_char = to_char
-
-#     def handle_release(self, listener: KeyboardListener):
-#         super().handle_release(listener)
-#         if hasattr(self, 'last_typed') and time.time() - self.last_typed < 0.2:
-#             keyboard_controller.tap(self.to_char)
-#         else:
-#             self.last_typed = time.time()
-
-
-# class SingleExecute(KeyController):
-#     """ Maps a button press to a command execution."""
-#     def __init__(self, key: int, command: str):
-#         super().__init__(key)
-#         self.command = command
-
-#     def handle_release(self, listener: KeyboardListener):
-#         super().handle_release(listener)
-#         KeyController.execute(self.command)
-
-
-# class DoubleToMacro(KeyController):
-#     """ Maps a double button press to macro text."""
-#     def __init__(self, keycode: int, macro_text: str):
-#         super().__init__(keycode)
-#         self.macro_text = macro_text
-
-#     def handle_release(self, listener: KeyboardListener):
-#         super().handle_release(listener)
-#         if hasattr(self, 'last_typed') and time.time() - self.last_typed < 0.2:
-#             debug('digitando mapeamento Double_to_Macro')
-#             keyboard_controller.tap(BACKSPACE)
-#             keyboard_controller.tap(BACKSPACE)
-#             keyboard_controller.type(self.macro_text)
-#         else:
-#             debug('no last_typed' if not hasattr(self, 'last_typed')
-#                   else str(time.time() - self.last_typed))
-#             self.last_typed = time.time()
-
-
-# class HoldToMacro(KeyController):
-#     """ Maps a long button press to macro text."""
-#     def __init__(self, keycode: int, macro_text: str):
-#         super().__init__(keycode)
-#         self.macro_text = macro_text
-#         self.total_presses = 0
-
-#     def handle_press(self, listener: KeyboardListener):
-#         super().handle_press(listener)
-#         self.total_presses += 1
-#         debug(f'Total presses: {self.total_presses}')
-#         if (self.total_presses == 2):
-#             debug('digitando mapeamento Hold_To_Macro')
-#             keyboard_controller.tap(BACKSPACE)
-#             keyboard_controller.type(self.macro_text)
-
-#     def handle_release(self, listener: KeyboardListener):
-#         super().handle_release(listener)
-#         self.total_presses = 0
-
-
-# class ShiftToMacro(KeyController):
-#     def __init__(self, keycode: int, macro_text: str):
-#         super().__init__(keycode)
-#         self.macro_text = macro_text
-
-#     def handle_release(self, listener: KeyboardListener):
-#         super().handle_press(listener)
-#         if 'SHIFT' in listener.control_keys_pressed:
-#             keyboard_controller.type(self.macro_text)
-
-
-# class ControlShiftToProgram(KeyController):
-#     def __init__(self, keycode: int, program: str,
-#                  minimize_not_kill=False, wayland=False):
-#         super().__init__(keycode)
-#         self.program = program
-#         self.minimize_not_kill = minimize_not_kill
-#         self.wayland = wayland
-
-#     def handle_release(self, listener: KeyboardListener):
-#         super().handle_press(listener)
-#         control_keys = 'CONTROL', 'SHIFT'
-#         if all(k in listener.control_keys_pressed for k in control_keys):
-#             KeyController.toggle_program(self.program, self.minimize_not_kill,
-#                                          wayland=self.wayland)
-
-
-# class ControlAltToProgram(KeyController):
-#     def __init__(self, keycode: int, program: str,
-#                  minimize_not_kill=False, wayland=False):
-#         super().__init__(keycode)
-#         self.program = program
-#         self.minimize_not_kill = minimize_not_kill
-#         self.wayland = wayland
-
-#     def handle_release(self, listener: KeyboardListener):
-#         super().handle_press(listener)
-#         control_keys = 'CONTROL', 'ALT'
-#         if all(k in listener.control_keys_pressed for k in control_keys):
-#             KeyController.toggle_program(self.program, self.minimize_not_kill,
-#                                          wayland=self.wayland)
-
-
-# class KeyToProgram(KeyController):
-#     def __init__(self, keycode: int, program: str,
-#                  minimize_not_kill=False, wayland=False):
-#         super().__init__(keycode)
-#         self.program = program
-#         self.minimize_not_kill = minimize_not_kill
-#         self.wayland = wayland
-
-#     def handle_release(self, listener: KeyboardListener):
-#         super().handle_press(listener)
-#         KeyController.toggle_program(self.program, self.minimize_not_kill,
-#                                      wayland=self.wayland)
+    def execute(self) -> None:
+        for action in self.actions:
+            action.execute()

@@ -28,20 +28,6 @@ def setpostmortem():
     """
     import pdb
 
-    try:
-        import bpython  # type: ignore
-    except ImportError as e:
-        LOG.warning("Bpython not available: %s", e)
-        bpython = None  # Handle case where bpython is not installed
-
-    try:
-        # Import the frame inspector (adjust the import path as needed)
-        from frame_inspector import inspect_frames  # type: ignore
-        frame_inspector_available = True
-    except ImportError as e:
-        LOG.warning("Frame inspector not available: %s", e)
-        frame_inspector_available = False
-
     def exception_handler(exc_type: type[BaseException],
                           exc_value: BaseException,
                           exc_traceback: TracebackType):
@@ -52,17 +38,27 @@ def setpostmortem():
 
         # Build the prompt based on available options
         options: list[str] = []
-        if frame_inspector_available:
-            options.append("i: inspect frames")
         options.append("p: pdb")
-        if bpython:
+        try:
+            import bpython  # type: ignore
             options.append("b: bpython")
+        except ImportError as e:
+            LOG.warning("Bpython not available: %s", e)
+            bpython = None  # Handle case where bpython is not installed
+
+        try:
+            # Import the frame inspector (adjust the import path as needed)
+            from utils.frame_inspector import inspect_frames  # type: ignore
+            options.append("i: inspect frames")
+        except ImportError as e:
+            LOG.warning("Frame inspector not available: %s", e)
+
         options.append("q: quit (default)")
 
         prompt = f"Enter debug mode? ({', '.join(options)}) : "
         choice = input(prompt).lower()
 
-        if choice == 'i' and frame_inspector_available:
+        if choice == 'i' and inspect_frames:
             print("Starting interactive frame inspector...")
             try:
                 inspect_frames(exc_traceback, exc_type, exc_value)  # type: ignore
@@ -75,13 +71,27 @@ def setpostmortem():
             pdb.post_mortem(exc_traceback)
         elif choice == 'b' and bpython:
             print("Starting bpython REPL session...")
-            # Get the innermost frame from the traceback
-            tb = exc_traceback
-            while tb.tb_next:  # Traverse to the last (innermost) frame
-                tb = tb.tb_next
-            frame = tb.tb_frame
-            # Pass the frame's locals to bpython
-            bpython.embed(locals_=dict(frame.f_locals))  # type: ignore
+
+            # Traverse from outermost to innermost frame,
+            # collecting locals from all frames, innermost last (so it overwrites)
+            all_locals = {}
+
+            frames = []
+            current_tb = exc_traceback
+            while current_tb:
+                frames.append(current_tb.tb_frame)
+                current_tb = current_tb.tb_next
+
+            # Merge locals from outermost to innermost (innermost overwrites)
+            for frame in frames:
+                all_locals.update(frame.f_locals)
+
+            # Inject additional util modules
+            from utils.pstr import pstr
+            all_locals['pstr'] = pstr
+
+            # Start bpython with all variables available
+            bpython.embed(locals_=all_locals)
         else:
             print("Skipping debug mode.")
 

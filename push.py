@@ -1,4 +1,4 @@
-import requests
+from utils import request
 from os import environ
 
 
@@ -24,7 +24,7 @@ def _push(msg: str, click_url: str, push_url: str, warning: bool):
     headers = {"Click": click_url} if click_url else {}
     if warning:
         headers.update(WARN_HEADERS)
-    requests.post(push_url, data=msg.encode('utf-8'), headers=headers)
+    request.post(push_url, data=msg.encode('utf-8'), headers=headers)
 
 
 if __name__ == '__main__':

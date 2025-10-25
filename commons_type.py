@@ -11,7 +11,7 @@ from typing import Callable  # type: ignore  # noqa
 
 from utils import type_checker  # noqa
 from utils.type_checker import check_type, valint, valbool, valfloat, valstr, valseq, valset, valmap, valpath, valobj  # type: ignore  # noqa
-from utils.mut import mut  # type: ignore  # noqa
+from utils.mut import Mut  # type: ignore  # noqa
 
 
 T = TypeVar('T')

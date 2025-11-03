@@ -4,8 +4,8 @@ from utils.mut import Mut
 
 def test_mut_init_with_mutable():
     mutable_obj = [1, 2, 3]
-    with Mut(mutable_obj) as m:
-        assert m.unwrap() is mutable_obj
+    mut = Mut(mutable_obj)
+    assert mut.read() is mutable_obj
 
 
 def test_mut_init_with_immutable():
@@ -15,55 +15,69 @@ def test_mut_init_with_immutable():
             Mut(immutable_obj)
 
 
-def test_mut_copy():
+def test_mut_unwrap():
     mutable_obj = [1, 2, 3]
-    with Mut(mutable_obj, copy=True) as m:
-        assert m.unwrap() is mutable_obj
-        assert m.copy == mutable_obj
-        assert m.copy is not mutable_obj
-        m.unwrap().append(4)
-        assert m.unwrap() == [1, 2, 3, 4]
-        assert m.copy == [1, 2, 3]
+    mut = Mut(mutable_obj)
+    with mut.unwrap() as m:
+        assert m is mutable_obj
+        m.append(4)
+    assert mut.read_updated() == [1, 2, 3, 4]
 
 
-def test_mut_deepcopy():
+def test_mut_copy_and_unwrap_shallow():
     mutable_obj = [1, [2, 3]]
-    with Mut(mutable_obj, deepcopy=True) as m:
-        assert m.unwrap() is mutable_obj
-        assert m.deepcopy == mutable_obj
-        assert m.deepcopy is not mutable_obj
-        m.unwrap()[1].append(4)
-        assert m.unwrap() == [1, [2, 3, 4]]
-        assert m.deepcopy == [1, [2, 3]]
+    mut = Mut(mutable_obj)
+    with mut.copy_and_unwrap() as (copy, m):
+        assert m is mutable_obj
+        assert copy == mutable_obj
+        assert copy is not mutable_obj
+        m[1].append(4)
+    assert mut.read_updated() == [1, [2, 3, 4]]
+    assert copy == [1, [2, 3, 4]]  # Shallow copy reflects the change
 
 
-def test_mut_copy_and_deepcopy():
+def test_mut_copy_and_unwrap_deep():
     mutable_obj = [1, [2, 3]]
-    with Mut(mutable_obj, copy=True, deepcopy=True) as m:
-        assert m.copy is not None
-        assert m.deepcopy is not None
-        m.unwrap()[1].append(4)
-        assert m.copy == [1, [2, 3, 4]]
-        assert m.deepcopy == [1, [2, 3]]
+    mut = Mut(mutable_obj)
+    with mut.copy_and_unwrap(deep=True) as (copy, m):
+        assert m is mutable_obj
+        assert copy == mutable_obj
+        assert copy is not mutable_obj
+        m[1].append(4)
+    assert mut.read_updated() == [1, [2, 3, 4]]
+    assert copy == [1, [2, 3]]  # Deep copy does not reflect the change
 
 
-def test_mut_no_copy_no_deepcopy():
+def test_read_and_read_updated():
     mutable_obj = [1, 2, 3]
-    with Mut(mutable_obj) as m:
-        with pytest.raises(AssertionError):
-            m.copy
-        with pytest.raises(AssertionError):
-            m.deepcopy
+    mut = Mut(mutable_obj)
+    assert mut.read() == [1, 2, 3]
+    with pytest.raises(AssertionError):
+        mut.read_updated()
+
+    with mut.unwrap() as m:
+        m.append(4)
+
+    assert mut.read_updated() == [1, 2, 3, 4]
+    with pytest.raises(AssertionError):
+        mut.read()
 
 
-def test_mut_context_exit():
+def test_unwrap_once():
     mutable_obj = [1, 2, 3]
-    m = Mut(mutable_obj, copy=True, deepcopy=True)
-    with m:
-        pass
-    with pytest.raises(AssertionError):
-        m.unwrap()
-    with pytest.raises(AssertionError):
-        m.copy
-    with pytest.raises(AssertionError):
-        m.deepcopy
+    mut = Mut(mutable_obj)
+    with mut.unwrap() as m:
+        m.append(4)
+
+    with pytest.raises(AssertionError, match="The same Mut wrapper should only get unwrapped once"):
+        with mut.unwrap() as m2:
+            m2.append(5)
+
+    # Test with copy_and_unwrap as well
+    mut2 = Mut([1, 2, 3])
+    with mut2.copy_and_unwrap() as (copy, m):
+        m.append(4)
+
+    with pytest.raises(AssertionError, match="The same Mut wrapper should only get unwrapped once"):
+        with mut2.copy_and_unwrap() as (copy2, m2):
+            m2.append(5)

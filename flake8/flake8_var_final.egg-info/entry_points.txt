@@ -1,2 +1,0 @@
-[flake8.extension]
-VAR001 = flake8_var_final:VarFinalChecker

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="flake8-var-final",
-    version="0.1.0",
+    version="0.1.1",
     description="flake8 plugin to enforce var_ prefix for mutable variables",
     author="Leandro Medeiros",
     packages=find_packages(),

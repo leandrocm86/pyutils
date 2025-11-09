@@ -2,6 +2,7 @@
 
 from enum import Enum, auto
 from typing import Callable, Optional
+import re
 import shutil
 
 
@@ -17,13 +18,15 @@ class Alignment(Enum):
     RIGHT = auto()
 
     def align_text(self, line: str, line_width: int):
+        visible_length = get_visible_length(line)
+        padding_width = line_width + (len(line) - visible_length)
         match self:
             case Alignment.CENTER:
-                return line.center(line_width)
+                return line.center(padding_width)
             case Alignment.RIGHT:
-                return line.rjust(line_width)
+                return line.rjust(padding_width)
             case Alignment.LEFT:
-                return line.ljust(line_width)
+                return line.ljust(padding_width)
 
 
 class Color(Enum):
@@ -59,17 +62,17 @@ def get_painter(color: Optional[Color] = None,
                 background: Optional[BGCOLOR] = None,
                 format: Optional[Format] = None
                 ) -> Callable[[str], str]:
-    prefix = ''
+    var_prefix = ''
     if color:
-        prefix = color.value
+        var_prefix = color.value
     if background:
-        prefix += f'\033[{background.value}m'
+        var_prefix += f'\033[{background.value}m'
     if format:
-        prefix += f'\033[{format.value}m'
+        var_prefix += f'\033[{format.value}m'
 
     def painter(text: str) -> str:
-        text = text.replace('\033[0m', '\033[0m' + prefix)
-        return f'{prefix}{text}\033[0m'
+        text = text.replace('\033[0m', '\033[0m' + var_prefix)
+        return f'{var_prefix}{text}\033[0m'
     return painter
 
 
@@ -113,6 +116,10 @@ def underline(text: str) -> str:
     return painter(text)
 
 
+def get_visible_length(text: str) -> int:
+    return len(re.sub(r'\033\[[0-9;]*m', '', text))
+
+
 def create_panel(content: str,
                  title: Optional[str] = None,
                  color: Optional[Color] = None,
@@ -138,16 +145,16 @@ def create_panel(content: str,
 
     terminal_width = shutil.get_terminal_size().columns
     content_lines: list[str] = content.strip().split('\n')
-    max_content_width = max(len(line) for line in content_lines) if content_lines else 0
-    title_width = len(title) if title else 0
+    max_content_width = max(get_visible_length(line) for line in content_lines) if content_lines else 0
+    title_width = get_visible_length(title) if title else 0
 
     if not width and not expand:
-        panel_width = max(max_content_width, title_width) + (padding * 2) + 2
+        var_panel_width = max(max_content_width, title_width) + (padding * 2) + 2
     else:
-        panel_width = width or terminal_width
+        var_panel_width = width or terminal_width
 
-    panel_width = max(panel_width, 8)  # Minimum for borders
-    content_area_width = panel_width - 2  # Width excluding borders
+    var_panel_width = max(var_panel_width, 8)  # Minimum for borders
+    content_area_width = var_panel_width - 2  # Width excluding borders
 
     color_start = color.value if color else ''
     color_end = '\033[0m' if color else ''
@@ -155,17 +162,17 @@ def create_panel(content: str,
 
     # Top border with title
     if title:
-        title_padded = f" {title} "
-        if len(title_padded) > content_area_width - 2:
-            title_padded = title_padded[:content_area_width - 5] + "... "
+        var_title_padded = f" {title} "
+        if len(var_title_padded) > content_area_width - 2:
+            var_title_padded = var_title_padded[:content_area_width - 5] + "... "
 
-        title_start = (content_area_width - len(title_padded)) // 2
-        top_line = "┌" + "─" * title_start + title_padded + "─" * \
-            (content_area_width - title_start - len(title_padded)) + "┐"
+        title_start = (content_area_width - len(var_title_padded)) // 2
+        var_top_line = "┌" + "─" * title_start + var_title_padded + "─" * \
+            (content_area_width - title_start - len(var_title_padded)) + "┐"
     else:
-        top_line = "┌" + "─" * content_area_width + "┐"
+        var_top_line = "┌" + "─" * content_area_width + "┐"
 
-    lines.append(color_start + top_line + color_end)
+    lines.append(color_start + var_top_line + color_end)
 
     # Top padding
     for _ in range(padding):
@@ -182,22 +189,22 @@ def create_panel(content: str,
     # Content lines
     for line in content_lines:
         # Wrap long lines
-        if len(line) > content_area_width - (padding * 2):
+        if get_visible_length(line) > content_area_width - (padding * 2):
             wrapped_lines: list[str] = []
-            remaining = line
+            var_remaining = line
             line_width = content_area_width - (padding * 2)
 
-            while remaining:
-                if len(remaining) <= line_width:
-                    wrapped_lines.append(remaining)
+            while var_remaining:
+                if len(var_remaining) <= line_width:
+                    wrapped_lines.append(var_remaining)
                     break
                 else:
                     # Find a good break point (space)
-                    break_point = remaining.rfind(' ', 0, line_width)
-                    if break_point == -1:
-                        break_point = line_width
-                    wrapped_lines.append(remaining[:break_point])
-                    remaining = remaining[break_point:].lstrip()
+                    var_break_point = var_remaining.rfind(' ', 0, line_width)
+                    if var_break_point == -1:
+                        var_break_point = line_width
+                    wrapped_lines.append(var_remaining[:var_break_point])
+                    var_remaining = var_remaining[var_break_point:].lstrip()
 
             for wrapped_line in wrapped_lines:
                 format_and_append(wrapped_line)

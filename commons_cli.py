@@ -173,6 +173,7 @@ def input_options(options: Mapping[str, T] | Sequence[T], prompt: str = 'Select 
                 continue
             chosen_indices = {int(s) for s in chosen_indices_str}
             if chosen_indices.issubset(valid_indices):
+                print()  # One empty line for spacing
                 return tuple(indexed_options[i] for i in sorted(list(chosen_indices)))
             else:
                 invalid = chosen_indices - valid_indices

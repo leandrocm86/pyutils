@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Callable, List, TypeVar
+from os import environ
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -174,7 +175,10 @@ class SeleniumDriver:
             options.add_argument('--disable-gpu')
             USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
             options.add_argument(f'user-agent={USER_AGENT}')
-        #   options.add_argument('--user-data-dir=~/.config/google-chrome')
+            options.add_argument('--disable-crash-reporter')
+            if user_data_dir := environ.get('USER_DATA_DIR'):
+                logfunc(f'Using user data dir for chromium: {user_data_dir}')
+                options.add_argument(f'--user-data-dir={user_data_dir}')
 
         service = None
         if not driver_path:
@@ -183,7 +187,10 @@ class SeleniumDriver:
             service = Service(ChromeDriverManager().install())
         else:
             logfunc(f'Using driver path: {driver_path}')
-            service = Service(executable_path=driver_path)
+            service = Service(
+                executable_path=driver_path,
+                service_args=['--verbose', '--log-path=/tmp/chromedriver.log']
+            )
         self.driver = webdriver.Chrome(service=service, options=options)
         self.logfunc('Selenium driver loaded')
 

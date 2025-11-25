@@ -47,22 +47,22 @@ def check_type(value: Any, expected_type: Any, max_checks: int = 100) -> None:
     # Handle Union types (including Optional and | syntax)
     origin = get_origin(expected_type)
     if _is_union_type(expected_type, origin):
-        args = get_args(expected_type)
-        for arg in args:
+        var_args = get_args(expected_type)
+        for arg in var_args:
             try:
                 check_type(value, arg)
                 return  # If any type matches, we're good
             except TypeError:
                 continue
         # If none matched, raise error
-        type_names = [_get_type_name(arg) for arg in args]
+        type_names = [_get_type_name(arg) for arg in var_args]
         raise TypeError(f"Expected one of {type_names}, got {type(value).__name__}")
 
     # Handle Literal types first (before checking origin)
     if _is_literal_type(expected_type):
-        args = get_args(expected_type)
-        if value not in args:
-            raise TypeError(f"Expected one of {args}, got {repr(value)}")
+        var_args = get_args(expected_type)
+        if value not in var_args:
+            raise TypeError(f"Expected one of {var_args}, got {repr(value)}")
         return
 
     # Handle generic types
@@ -72,9 +72,9 @@ def check_type(value: Any, expected_type: Any, max_checks: int = 100) -> None:
             raise TypeError(f"Expected {_get_type_name(expected_type)}, got {type(value).__name__}")
 
         # Check generic arguments
-        args = get_args(expected_type)
-        if args:
-            __check_generic_args(value, origin, args, max_checks)
+        var_args = get_args(expected_type)
+        if var_args:
+            __check_generic_args(value, origin, var_args, max_checks)
     else:
         # Handle regular types
         if not isinstance(value, expected_type):
@@ -110,11 +110,11 @@ def __check_generic_args(value: Any, origin: type, args: tuple[Any, ...], max_ch
     if origin in (list, set, frozenset, Seq, Set):
         # For homogeneous collections, check element type
         if len(args) == 1:
-            element_type = args[0]
-            items = list(value)[:max_checks] if hasattr(value, '__iter__') else []
-            for i, item in enumerate(items):
+            var_element_type = args[0]
+            var_items = list(value)[:max_checks] if hasattr(value, '__iter__') else []
+            for i, item in enumerate(var_items):
                 try:
-                    check_type(item, element_type, max_checks=max_checks)
+                    check_type(item, var_element_type, max_checks=max_checks)
                 except TypeError as e:
                     raise TypeError(f"Element at index {i}: {e}")
 
@@ -122,12 +122,12 @@ def __check_generic_args(value: Any, origin: type, args: tuple[Any, ...], max_ch
         # Handle tuple types specially
         if len(args) == 2 and args[1] is ...:
             # tuple[int, ...] - homogeneous tuple of any length
-            element_type = args[0]
+            var_element_type = args[0]
             # Check up to first 100 elements
-            items = list(value)[:100]
-            for i, item in enumerate(items):
+            var_items = list(value)[:100]
+            for i, item in enumerate(var_items):
                 try:
-                    check_type(item, element_type, max_checks=max_checks)
+                    check_type(item, var_element_type, max_checks=max_checks)
                 except TypeError as e:
                     raise TypeError(f"Element at index {i}: {e}")
         else:
@@ -144,8 +144,8 @@ def __check_generic_args(value: Any, origin: type, args: tuple[Any, ...], max_ch
         # For dictionaries, check key and value types
         if len(args) == 2:
             key_type, value_type = args
-            items = list(value.items())[:max_checks]
-            for key, val in items:
+            var_items = list(value.items())[:max_checks]
+            for key, val in var_items:
                 try:
                     check_type(key, key_type, max_checks=max_checks)
                 except TypeError as e:
@@ -413,7 +413,7 @@ def valmap(value: Map[K, V],
 
 def valpath(value: Path,
             exists: Optional[bool] = None,
-            is_dir: Optional[bool] = None,
+            is_dir_if_exists: Optional[bool] = None,
             match: Optional[str] = None,
             full_match: Optional[str] = None,
             can_read_if_exists: Optional[bool] = None,
@@ -430,11 +430,11 @@ def valpath(value: Path,
 
     def __verify_parents_permissions() -> str:
         unexec_parents: list[Path] = []
-        current = value
-        while current != current.parent:  # Stop at root directory
-            current = current.parent
-            if not os.access(current, os.X_OK):   # Check if parent is traversable (has execute permission)
-                unexec_parents.append(current)
+        var_current = value
+        while var_current != var_current.parent:  # Stop at root directory
+            var_current = var_current.parent
+            if not os.access(var_current, os.X_OK):   # Check if parent is traversable (has execute permission)
+                unexec_parents.append(var_current)
         if unexec_parents:
             return "\nThe following parent folders seem to miss execute permission (or don't exist): " \
                 + ', '.join(str(p) for p in unexec_parents)
@@ -463,18 +463,22 @@ def valpath(value: Path,
             except PermissionError:
                 _error(f'Permission error when trying to check existence of path {value}.' + __verify_parents_permissions())
 
-    if is_dir is not None:
-        expected = 'directory' if is_dir else 'file'
+    if is_dir_if_exists is not None:
+        expected = 'directory' if is_dir_if_exists else 'file'
         try:
-            is_actually_dir = value.is_dir()
-            is_actually_file = value.is_file()
-            if is_actually_dir == is_actually_file:
-                _error(f"Impossible to check if path {value} is a {expected}. Maybe it doesn't exist." + __verify_path_exists())
-            elif is_actually_dir != is_dir:
-                actually = 'directory' if is_actually_dir else 'file'
-                _error(f'Invalid path: expected {expected}, got {actually}.')
+            if value.exists():
+                try:
+                    is_actually_dir = value.is_dir()
+                    is_actually_file = value.is_file()
+                    if is_actually_dir == is_actually_file:
+                        _error(f"Impossible to check if path {value} is a {expected}. Maybe it doesn't exist." + __verify_path_exists())
+                    elif is_actually_dir != is_dir_if_exists:
+                        actually = 'directory' if is_actually_dir else 'file'
+                        _error(f'Invalid path: expected {expected}, got {actually}.')
+                except PermissionError:
+                    _error(f'Permission error when trying to check if path {value} is a {expected}.' + __verify_parents_permissions())
         except PermissionError:
-            _error(f'Permission error when trying to check if path {value} is a {expected}.' + __verify_parents_permissions())
+            _error(f'Permission error when trying to check existence of path {value}.' + __verify_parents_permissions())
 
     if exists is not None:
         try:

@@ -49,30 +49,28 @@ class TestPathOk:
     def test_is_file(self):
         """Test that a valid existing file passes all checks"""
         # Successful case
-        valpath(WRX_DIR_WRX_FILE, is_dir=False)
-        valpath(WRX_DIR_ROOT_FILE, is_dir=False)
+        valpath(WRX_DIR_WRX_FILE, is_dir_if_exists=False)
+        valpath(WRX_DIR_ROOT_FILE, is_dir_if_exists=False)
 
-        # Error case - file does not exist
-        with pytest.raises(InvalidContractError, match="Impossible to check if path"):
-            valpath(WRX_DIR_NON_EXISTENT_FILE, is_dir=False)
+        # File does not exist - no error
+        valpath(WRX_DIR_NON_EXISTENT_FILE, is_dir_if_exists=False)
 
         # Error case - expecting a directory to be a file
         with pytest.raises(InvalidContractError, match="Invalid path: expected file, got directory"):
-            valpath(WRX_DIR, is_dir=False)
+            valpath(WRX_DIR, is_dir_if_exists=False)
 
-    def test_is_directory(self):
+    def test_is_directory_if_exists(self):
         """Test that a valid existing directory passes all checks"""
         # Successful case
-        valpath(WRX_DIR, is_dir=True)
-        valpath(WRX_DIR_RX_SUBDIR, is_dir=True)
+        valpath(WRX_DIR, is_dir_if_exists=True)
+        valpath(WRX_DIR_RX_SUBDIR, is_dir_if_exists=True)
 
-        # Error case - directory does not exist
-        with pytest.raises(InvalidContractError, match="Impossible to check if path"):
-            valpath(TEST_BASEPATH / 'non_existent', is_dir=True)
+        # Directory does not exist - no error
+        valpath(TEST_BASEPATH / 'non_existent', is_dir_if_exists=True)
 
         # Error case - expecting a file to be a directory
         with pytest.raises(InvalidContractError, match="Invalid path: expected directory, got file"):
-            valpath(WRX_DIR_WRX_FILE, is_dir=True)
+            valpath(WRX_DIR_WRX_FILE, is_dir_if_exists=True)
 
     def test_file_permissions_read(self):
         """Test checking file read permission"""
@@ -178,7 +176,7 @@ class TestPathOk:
             valpath(WR_DIR_WRX_FILE, exists=True)
 
         with pytest.raises(InvalidContractError, match="parent folders seem to miss execute permission"):
-            valpath(WR_DIR_WRX_FILE, is_dir=False)
+            valpath(WR_DIR_WRX_FILE, is_dir_if_exists=False)
 
         with pytest.raises(InvalidContractError, match="parent folders seem to miss execute permission"):
             valpath(WR_DIR_WRX_FILE, can_read_if_exists=True)
@@ -194,7 +192,7 @@ class TestPathOk:
         # Successful case - multiple conditions pass
         valpath(WRX_DIR_WRX_FILE,
                 exists=True,
-                is_dir=False,
+                is_dir_if_exists=False,
                 can_read_if_exists=True,
                 can_modify_if_exists=True,
                 can_execute_if_exists=True)
@@ -203,7 +201,7 @@ class TestPathOk:
         with pytest.raises(InvalidContractError, match="Invalid write path permissions"):
             valpath(WRX_DIR_RX_FILE,
                     exists=True,
-                    is_dir=False,
+                    is_dir_if_exists=False,
                     can_read_if_exists=True,
                     can_modify_if_exists=True,  # This should fail
                     can_execute_if_exists=False)

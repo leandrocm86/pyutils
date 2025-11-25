@@ -16,11 +16,12 @@ class KeyboardEvdevRobot:
     """
 
     def __init__(self, virtual_device_name: str):
-        from evdev import UInput, ecodes  # pip install evdev (parece ser linux-only)
+        from evdev import UInput  # pip install evdev (parece ser linux-only)
         self.ui = UInput(name=virtual_device_name)
 
     def input_event(self, event: KeyboardEvent):
         """Generates a key input event, given a KeyboardEvent."""
+        from evdev import ecodes  # pip install evdev (parece ser linux-only)
         self.ui.write(ecodes.EV_KEY, event.keycode, event.event_type.value)  # type: ignore
         self.ui.syn()  # type: ignore
         log.debug('Robot input (evdev): %s', event)

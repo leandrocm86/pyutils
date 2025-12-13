@@ -4,8 +4,9 @@ import sys
 from types import FrameType, TracebackType
 from os import environ
 from typing import Any
-from pstr import pstr
-from style import green, cyan, yellow, red, orange
+import re
+from .pstr import pstr
+from .style import green, cyan, yellow, red, orange
 
 LOG_FILENAME = environ.get('LOG_FILE')
 LOG_LEVEL_NAME = environ.get('LOG_LEVEL', '').upper() or ('DEBUG' if sys.stdout.isatty() else 'INFO')
@@ -37,12 +38,16 @@ class CustomFormatter(logging.Formatter):
         color = self.COLOR_BY_LEVEL.get(record.levelname) if self.colored else None
         if record.args:
             if isinstance(record.args, tuple):
-                pargs: list[str] = []
-                for arg in record.args:
-                    if not arg or isinstance(arg, self.PRIMITIVES):
-                        pargs.append(orange(str(arg)))
+                placeholders = re.findall(r'%[sdiouxXeEfFgGcra]', record.msg)
+                pargs: list[Any] = []
+                for idx, arg in enumerate(record.args):
+                    if len(placeholders) > idx and placeholders[idx] == '%s':  # Apenas colorimos args usados com %s
+                        if not arg or isinstance(arg, self.PRIMITIVES):
+                            pargs.append(orange(str(arg)))
+                        else:
+                            pargs.append(pstr(arg, colored=self.colored))
                     else:
-                        pargs.append(pstr(arg, colored=self.colored))
+                        pargs.append(arg)
                 record.args = tuple(pargs)
             else:
                 record.args = pstr(record.args, colored=self.colored)  # type: ignore

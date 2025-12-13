@@ -1,5 +1,4 @@
 import os
-import getpass
 import platform
 import hashlib
 import base64
@@ -91,6 +90,11 @@ def generate_system_key():
     Generates a key based on system information.
     Returns a 32-byte key suitable for Fernet encryption.
     """
+    try:
+        user = os.getlogin()
+    except OSError:
+        user = os.getuid()
+
     # Collect system information
     system_info = [
         platform.system(),
@@ -99,8 +103,7 @@ def generate_system_key():
         platform.machine(),
         platform.node(),
         platform.processor(),
-        os.getlogin(),
-        getpass.getuser(),
+        str(user),
         get_hardware_id()
     ]
 

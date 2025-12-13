@@ -45,6 +45,7 @@ class Color(Enum):
     BLUE = '\033[38;5;39m'
     MAGENTA = '\033[38;5;165m'
     CYAN = '\033[38;5;87m'
+    ORANGE = '\033[38;5;208m'
 
 
 class BGCOLOR(Enum):
@@ -103,6 +104,11 @@ def magenta(text: str) -> str:
 
 def cyan(text: str) -> str:
     painter = get_painter(Color.CYAN)
+    return painter(text)
+
+
+def orange(text: str) -> str:
+    painter = get_painter(Color.ORANGE)
     return painter(text)
 
 

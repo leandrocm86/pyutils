@@ -4,8 +4,8 @@ import sys
 from types import FrameType, TracebackType
 from os import environ
 from typing import Any
-from .pstr import pstr
-from .style import green, cyan, yellow, red
+from pstr import pstr
+from style import green, cyan, yellow, red, orange
 
 LOG_FILENAME = environ.get('LOG_FILE')
 LOG_LEVEL_NAME = environ.get('LOG_LEVEL', '').upper() or ('DEBUG' if sys.stdout.isatty() else 'INFO')
@@ -26,6 +26,7 @@ class CustomFormatter(logging.Formatter):
         'WARNING': yellow,
         'ERROR': red
     }
+    PRIMITIVES = (int, str, bool, float)
 
     def __init__(self, fmt: str = f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
                  datefmt: str = '%d %b %H:%M:%S', colored: bool = False):
@@ -34,13 +35,19 @@ class CustomFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord):
         color = self.COLOR_BY_LEVEL.get(record.levelname) if self.colored else None
-        formatted_record = super().format(record)
-        return color(formatted_record) if color else formatted_record
-
-
-# default_formatter = logging.Formatter(
-#    f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
-#    datefmt='%d %b %H:%M:%S')
+        if record.args:
+            if isinstance(record.args, tuple):
+                pargs: list[str] = []
+                for arg in record.args:
+                    if not arg or isinstance(arg, self.PRIMITIVES):
+                        pargs.append(orange(str(arg)))
+                    else:
+                        pargs.append(pstr(arg, colored=self.colored))
+                record.args = tuple(pargs)
+            else:
+                record.args = pstr(record.args, colored=self.colored)  # type: ignore
+        formatted_msg = super().format(record)
+        return color(formatted_msg) if color else formatted_msg
 
 handlers_msgs: list[str] = []
 

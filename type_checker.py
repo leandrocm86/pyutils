@@ -218,7 +218,7 @@ def valstr(value: str,
         if isinstance(regex, str):
             regex = compile(regex)
         if not regex.match(value):
-            _error(f'Invalid str: expected regex {regex}, but it didn\'t match with string "{pstr(value, maxlen=50)}".')
+            _error(f'Invalid str: expected regex "{regex.pattern}", but it didn\'t match with string "{pstr(value, maxlen=50)}".')
 
     if domain and value not in domain:
         _error(f'Invalid str: expected domain {pstr(domain, maxlen=50)} doesn\'t contain value "{pstr(value, maxlen=50)}".')

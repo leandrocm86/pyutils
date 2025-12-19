@@ -62,6 +62,7 @@ if LOG_FILENAME:
     LOG.addHandler(file_handler)
     handlers_msgs.append(f'Added file handler for logger with level {LOG_LEVEL_NAME} on file {LOG_FILENAME}')
 if SYSTEMD:
+    # sudo apt install libsystemd-dev pkg-config; pip install systemd-python
     from systemd import journal
     from types import MappingProxyType
     # Override mapping: INFO (6 on journald) to 5 (notice),
@@ -172,7 +173,8 @@ def __print_frame_info(frame: FrameType, line_number: int, frame_number: int, ma
         for name, value in sorted(locals_dict.items()):
             try:
                 # Use pstr for better formatting of complex objects
-                value_str = pstr(value, colored=ExceptionsConfig.colored_print, maxlen=10, maxdepth=3)
+                maxlen = 50 if isinstance(value, str) else 10
+                value_str = pstr(value, colored=ExceptionsConfig.colored_print, maxlen=maxlen, maxdepth=3)
                 # Truncate very long values
                 print(f"  {name:>{name_padding}} = {value_str}")
             except Exception as e:

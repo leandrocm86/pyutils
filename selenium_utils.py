@@ -1,39 +1,42 @@
 from __future__ import annotations
 
-from typing import Callable, List, TypeVar
+import base64
 from os import environ
+from pathlib import Path
+from typing import Callable, List, TypeVar
 
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.chromium.options import ChromiumOptions
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chromium.options import ChromiumOptions
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.print_page_options import PrintOptions
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait as WDWait
-from selenium.common.exceptions import TimeoutException
 
 # Drivers alternativos em https://sites.google.com/chromium.org/driver/
 # Instalados com snap install chromium no ubuntu (chromium é só via snap agora)
-DEFAULT_DRIVER_PATH = '/usr/bin/chromedriver'
-SNAP_DRIVER_PATH = '/snap/bin/chromium.chromedriver'
-DEFAULT_BIN_PATH = '/usr/bin/chromium-browser'
-SNAP_BIN_PATH = '/snap/bin/chromium'
+DEFAULT_DRIVER_PATH = "/usr/bin/chromedriver"
+SNAP_DRIVER_PATH = "/snap/bin/chromium.chromedriver"
+DEFAULT_BIN_PATH = "/usr/bin/chromium-browser"
+SNAP_BIN_PATH = "/snap/bin/chromium"
 
 T = TypeVar("T")
 
 
 def remove_tags(text: str):
     while True:
-        index_tag_start = text.find('<')
-        index_tag_end = text.find('>', index_tag_start)
+        index_tag_start = text.find("<")
+        index_tag_end = text.find(">", index_tag_start)
         if index_tag_start == -1 or index_tag_end == -1:
             break
-        text = text[:index_tag_start] + text[index_tag_end + 1:]
+        text = text[:index_tag_start] + text[index_tag_end + 1 :]
     return text
 
 
-def wait_for(parent: SeleniumElement | SeleniumDriver, selector: str,
-             by: str = By.CSS_SELECTOR, timeout: int = 10) -> List[SeleniumElement]:
+def wait_for(
+    parent: SeleniumElement | SeleniumDriver, selector: str, by: str = By.CSS_SELECTOR, timeout: int = 10
+) -> List[SeleniumElement]:
     try:
         driver = parent.driver if isinstance(parent, SeleniumElement) else parent
 
@@ -42,12 +45,12 @@ def wait_for(parent: SeleniumElement | SeleniumDriver, selector: str,
                 found_elems = parent.webelement.find_elements(by, selector)
             else:
                 found_elems = parent.driver.find_elements(by, selector)
-            driver.logfunc(f'Found {len(found_elems)} searching for {selector}')
+            driver.logfunc(f"Found {len(found_elems)} searching for {selector}")
             return [SeleniumElement(e, driver) for e in found_elems]
-        return WDWait(driver.driver, poll_frequency=1, timeout=timeout) \
-            .until(lambda _: search())
+
+        return WDWait(driver.driver, poll_frequency=1, timeout=timeout).until(lambda _: search())
     except TimeoutException:
-        driver.logfunc('Timeout reached while searching for', selector)
+        driver.logfunc("Timeout reached while searching for", selector)
         return []
 
 
@@ -59,23 +62,23 @@ class SeleniumElement:
     def child_by_css(self, css_selector: str, timeout: int = 10) -> SeleniumElement:
         found = self.find_child_by_css(css_selector, timeout=timeout)
         if not found:
-            raise NoSuchElementException(f'Cannot find child with selector {css_selector}')
+            raise NoSuchElementException(f"Cannot find child with selector {css_selector}")
         return found
 
     def child_by_xpath(self, xpath: str, timeout: int = 10) -> SeleniumElement:
         found = self.find_child_by_xpath(xpath, timeout=timeout)
         if not found:
-            raise NoSuchElementException(f'Cannot find child with selector {xpath}')
+            raise NoSuchElementException(f"Cannot find child with selector {xpath}")
         return found
 
     def find_child_by_css(self, css_selector: str, timeout: int = 10) -> SeleniumElement | None:
         found = self.all_children_by_css(css_selector, timeout=timeout)
-        assert len(found) <= 1, f'Found {len(found)} children searching for {css_selector}'
+        assert len(found) <= 1, f"Found {len(found)} children searching for {css_selector}"
         return found[0] if found else None
 
     def find_child_by_xpath(self, xpath: str, timeout: int = 10) -> SeleniumElement | None:
         found = self.all_children_by_xpath(xpath, timeout=timeout)
-        assert len(found) <= 1, f'Found {len(found)} children searching for {xpath}'
+        assert len(found) <= 1, f"Found {len(found)} children searching for {xpath}"
         return found[0] if found else None
 
     def all_children_by_css(self, css_selector: str, timeout: int = 10) -> List[SeleniumElement]:
@@ -134,7 +137,7 @@ class SeleniumElement:
     #     return [SeleniumElement(e, self.driver) for e in self.webelement.find_elements(By.XPATH, xpath)]
 
     def text(self) -> str:
-        text = self.webelement.get_attribute('innerHTML') or ''
+        text = self.webelement.get_attribute("innerHTML") or ""
         return remove_tags(text).strip()
 
     def attr(self, attribute_name: str) -> str | None:
@@ -147,52 +150,56 @@ class SeleniumElement:
         self.webelement.send_keys(keys)
 
     def __str__(self) -> str:
-        id = self.attr('id')
+        id = self.attr("id")
         tag = self.webelement.tag_name
-        return f'{tag}#{id if id else "-"}'
+        return f"{tag}#{id if id else '-'}"
 
     def __repr__(self) -> str:
         return str(self)
 
 
 class SeleniumDriver:
-    def __init__(self, driver_path: str | None = None,
-                 bin_path: str | None = None,
-                 logfunc: Callable[[str], None] = print,
-                 options: ChromiumOptions | None = None):
-        """ IF NO DRIVER PATH IS SPECIFIED, CHROMEDRIVERMANAGER IS USED """
+    def __init__(
+        self,
+        driver_path: str | None = None,
+        bin_path: str | None = None,
+        logfunc: Callable[[str], None] = print,
+        options: ChromiumOptions | None = None,
+    ):
+        """IF NO DRIVER PATH IS SPECIFIED, CHROMEDRIVERMANAGER IS USED"""
 
         self.logfunc = logfunc
-        self.logfunc('Starting Selenium driver')
+        self.logfunc("Starting Selenium driver")
         if not options:
             options = webdriver.ChromeOptions()
             if bin_path:
                 options.binary_location = bin_path
-            options.add_argument('--no-sandbox')
-            options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--ignore-certificate-errors')
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--ignore-certificate-errors")
             options.add_argument("--headless=new")
-            options.add_argument('--disable-gpu')
+            options.add_argument("--disable-gpu")
             USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            options.add_argument(f'user-agent={USER_AGENT}')
-            options.add_argument('--disable-crash-reporter')
-            if user_data_dir := environ.get('USER_DATA_DIR'):
-                logfunc(f'Using user data dir for chromium: {user_data_dir}')
-                options.add_argument(f'--user-data-dir={user_data_dir}')
+            options.add_argument(f"user-agent={USER_AGENT}")
+            options.add_argument("--disable-crash-reporter")
+            options.add_argument("--kiosk-printing")
+            if user_data_dir := environ.get("USER_DATA_DIR"):
+                logfunc(f"Using user data dir for chromium: {user_data_dir}")
+                options.add_argument(f"--user-data-dir={user_data_dir}")
 
         service = None
         if not driver_path:
-            logfunc('No driver specified. Using ChromeDriverManager...')
+            logfunc("No driver specified. Using ChromeDriverManager...")
             from webdriver_manager.chrome import ChromeDriverManager
+
             service = Service(ChromeDriverManager().install())
         else:
-            logfunc(f'Using driver path: {driver_path}')
+            logfunc(f"Using driver path: {driver_path}")
             service = Service(
-                executable_path=driver_path,
-                service_args=['--verbose', '--log-path=/tmp/chromedriver.log']
+                executable_path=driver_path, service_args=["--verbose", "--log-path=/tmp/chromedriver.log"]
             )
         self.driver = webdriver.Chrome(service=service, options=options)
-        self.logfunc('Selenium driver loaded')
+        self.logfunc("Selenium driver loaded")
 
     def __enter__(self):
         return self
@@ -202,34 +209,34 @@ class SeleniumDriver:
             self.quit()
 
     def quit(self):
-        self.logfunc('Closing browser driver')
+        self.logfunc("Closing browser driver")
         self.driver.quit()
 
     def get(self, url: str, timeout=300):
         self.driver.set_page_load_timeout(timeout)
-        self.logfunc('Retrieving ' + url)
+        self.logfunc("Retrieving " + url)
         self.driver.get(url)
 
     def by_css(self, css_selector: str, timeout: int = 10) -> SeleniumElement:
         found = self.find_by_css(css_selector, timeout=timeout)
         if not found:
-            raise NoSuchElementException(f'Cannot find element with selector {css_selector}')
+            raise NoSuchElementException(f"Cannot find element with selector {css_selector}")
         return found
 
     def by_xpath(self, xpath: str, timeout: int = 10) -> SeleniumElement:
-        found = self.find_by_css(xpath, timeout=timeout)
+        found = self.find_by_xpath(xpath, timeout=timeout)
         if not found:
-            raise NoSuchElementException(f'Cannot find element with selector {xpath}')
+            raise NoSuchElementException(f"Cannot find element with selector {xpath}")
         return found
 
     def find_by_css(self, css_selector: str, timeout: int = 10) -> SeleniumElement | None:
         found = self.all_by_css(css_selector, timeout=timeout)
-        assert len(found) <= 1, f'Found {len(found)} elements searching for {css_selector}'
+        assert len(found) <= 1, f"Found {len(found)} elements searching for {css_selector}"
         return found[0] if found else None
 
     def find_by_xpath(self, xpath: str, timeout: int = 10) -> SeleniumElement | None:
         found = self.all_by_xpath(xpath, timeout=timeout)
-        assert len(found) <= 1, f'Found {len(found)} elements searching for {xpath}'
+        assert len(found) <= 1, f"Found {len(found)} elements searching for {xpath}"
         return found[0] if found else None
 
     def all_by_css(self, css_selector: str, timeout: int = 10) -> List[SeleniumElement]:
@@ -287,8 +294,21 @@ class SeleniumDriver:
     # def all_by_xpath(self, xpath: str) -> List[SeleniumElement]:
     #     return [SeleniumElement(e, self) for e in self.driver.find_elements(By.XPATH, xpath)]
 
+    def print_page(self, path: Path | str, width: float, height: float):
+        """Saves a page as PDF in the given path.
+        A3 = 29.7 x 42; A4 = 21 x 29.7
+        """
+        print_options = PrintOptions()
+        print_options.page_width = width
+        print_options.page_height = height
+        # print_options.margin_left = 1.0
+        # print_options.margin_right = 1.0
+        pdf_data = self.driver.print_page(print_options=print_options)
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(pdf_data))
+
     def print_page_source(self, path: str | None = None) -> str:
         if path:
-            with open(path, 'w') as f:
+            with open(path, "w") as f:
                 f.write(self.driver.page_source)
         return self.driver.page_source

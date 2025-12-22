@@ -6,7 +6,7 @@ from os import environ
 from typing import Any
 import re
 from .pstr import pstr
-from .style import green, cyan, yellow, red, orange
+from . import style
 
 LOG_FILENAME = environ.get('LOG_FILE')
 LOG_LEVEL_NAME = environ.get('LOG_LEVEL', '').upper() or ('DEBUG' if sys.stdout.isatty() else 'INFO')
@@ -22,28 +22,29 @@ LOG.setLevel(LOG_LEVEL_NUMBER)
 
 class CustomFormatter(logging.Formatter):
     COLOR_BY_LEVEL = {
-        'DEBUG': green,
-        'INFO': cyan,
-        'WARNING': yellow,
-        'ERROR': red
+        'DEBUG': style.Color.LOW_WHITE,
+        'INFO': style.Color.CYAN,
+        'WARNING': style.Color.YELLOW,
+        'ERROR': style.Color.RED
     }
     PRIMITIVES = (int, str, bool, float)
 
-    def __init__(self, fmt: str = f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
+    # def __init__(self, fmt: str = f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
+    def __init__(self, fmt: str = '%(asctime)s [%(levelname)s] %(message)s',
                  datefmt: str = '%d %b %H:%M:%S', colored: bool = False):
         super().__init__(fmt=fmt, datefmt=datefmt)
         self.colored = colored
 
     def format(self, record: logging.LogRecord):
         color = self.COLOR_BY_LEVEL.get(record.levelname) if self.colored else None
-        if record.args:
+        if record.args and color:
             if isinstance(record.args, tuple):
                 placeholders = re.findall(r'%[sdiouxXeEfFgGcra]', record.msg)
                 pargs: list[Any] = []
                 for idx, arg in enumerate(record.args):
                     if len(placeholders) > idx and placeholders[idx] == '%s':  # Apenas colorimos args usados com %s
                         if not arg or isinstance(arg, self.PRIMITIVES):
-                            pargs.append(orange(str(arg)))
+                            pargs.append(style.orange(str(arg)))
                         else:
                             pargs.append(pstr(arg, colored=self.colored))
                     else:
@@ -52,7 +53,11 @@ class CustomFormatter(logging.Formatter):
             else:
                 record.args = pstr(record.args, colored=self.colored)  # type: ignore
         formatted_msg = super().format(record)
-        return color(formatted_msg) if color else formatted_msg
+        if color:
+            painter = style.get_painter(color)
+            return painter('-'*60 + '\n' + formatted_msg)
+        else:
+            return formatted_msg
 
 handlers_msgs: list[str] = []
 
@@ -88,7 +93,7 @@ if SYSTEMD:
 
 if not (LOG_FILENAME or SYSTEMD) or sys.stdout.isatty():
     stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(CustomFormatter(colored=True))
+    stream_handler.setFormatter(CustomFormatter(colored=True, datefmt='%H:%M:%S'))
     LOG.addHandler(stream_handler)
     handlers_msgs.append(f'Added stream handler for logger with level {LOG_LEVEL_NAME}')
 

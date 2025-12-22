@@ -90,3 +90,34 @@ def install_external_libs(*module_names: str):
             import sys
             exec([sys.executable, '-m', 'pip', 'install', modname], ignore_output=True, timeout=120)
             print(f'Module {modname} installed successfully!')
+
+
+def get_memory_from_proc() -> tuple[int, int, int]:
+    try:
+        with open('/proc/meminfo', 'r') as f:
+            meminfo = {}
+            for line in f:
+                parts = line.split(':')
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    value = parts[1].strip().split()[0]  # Get the number
+                    meminfo[key] = int(value) * 1024  # Convert to bytes
+
+            # Calculate available memory (approximation)
+            # Different Linux kernels report memory differently
+            total: int = meminfo.get('MemTotal', 0)
+            available: int = meminfo.get('MemAvailable', 0)
+            used: int = meminfo.get('MemUsed', 0)
+
+            if available == 0:
+                # Fallback calculation
+                free = meminfo.get('MemFree', 0)
+                buffers = meminfo.get('Buffers', 0)
+                cached = meminfo.get('Cached', 0)
+                available = free + buffers + cached
+
+            return used, available, total
+
+    except FileNotFoundError:
+        print("Not running on Linux or /proc/meminfo not accessible")
+        return 0, 0, 0

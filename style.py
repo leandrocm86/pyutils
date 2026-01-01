@@ -5,6 +5,8 @@ from typing import Callable, Optional
 import re
 import shutil
 
+from .pipe import Pipeable
+
 
 class Format(Enum):
     NORMAL = 0
@@ -77,46 +79,61 @@ def get_painter(color: Optional[Color] = None,
     return painter
 
 
+@Pipeable
 def red(text: str) -> str:
     painter = get_painter(Color.RED)
     return painter(text)
 
 
+@Pipeable
 def green(text: str) -> str:
     painter = get_painter(Color.GREEN)
     return painter(text)
 
 
+@Pipeable
 def yellow(text: str) -> str:
     painter = get_painter(Color.YELLOW)
     return painter(text)
 
 
+@Pipeable
 def blue(text: str) -> str:
     painter = get_painter(Color.BLUE)
     return painter(text)
 
 
+@Pipeable
 def magenta(text: str) -> str:
     painter = get_painter(Color.MAGENTA)
     return painter(text)
 
 
+@Pipeable
 def cyan(text: str) -> str:
     painter = get_painter(Color.CYAN)
     return painter(text)
 
 
+@Pipeable
 def orange(text: str) -> str:
     painter = get_painter(Color.ORANGE)
     return painter(text)
 
 
+@Pipeable
+def gray(text: str) -> str:
+    painter = get_painter(Color.LOW_WHITE)
+    return painter(text)
+
+
+@Pipeable
 def bold(text: str) -> str:
     painter = get_painter(format=Format.BOLD)
     return painter(text)
 
 
+@Pipeable
 def underline(text: str) -> str:
     painter = get_painter(format=Format.UNDERLINE)
     return painter(text)
@@ -129,7 +146,7 @@ def get_visible_length(text: str) -> int:
 def create_panel(content: str,
                  title: Optional[str] = None,
                  color: Optional[Color] = None,
-                 padding: int = 1,
+                 padding: int = 0,
                  expand: bool = True,
                  width: Optional[int] = None,
                  align: Alignment = Alignment.LEFT) -> str:

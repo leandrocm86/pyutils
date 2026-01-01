@@ -55,7 +55,7 @@ class CustomFormatter(logging.Formatter):
         formatted_msg = super().format(record)
         if color:
             painter = style.get_painter(color)
-            return painter('-'*60 + '\n' + formatted_msg)
+            return painter('_'*60 + '\n' + formatted_msg)
         else:
             return formatted_msg
 

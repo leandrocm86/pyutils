@@ -199,9 +199,8 @@ def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
            f"Unsupported file extension: {file_path}"
 
     ext = match.group(1).lower()
-    out = str(output_dir) if output_dir else 'the same folder'
 
-    LOG.info(f"Extracting {file_path} to {out}, {preserve_structure=}")
+    LOG.info(f"Extracting {file_path} to {str(output_dir) if output_dir else 'the same folder'}, {preserve_structure=}")
 
     if ext == '.tar.gz':
         extracted_gz = extract_gz_file(file_path, output_dir)
@@ -281,8 +280,9 @@ def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None) ->
     If no output directory is specified, the files are extracted into the same directory of the compressed file.
     Returns the path of the decompressed file.
     """
-    file_name, ext = os.path.splitext(file_path)
+    file_name, ext = os.path.splitext(os.path.basename(file_path))
     assert ext.lower() == '.gz'
+    LOG.debug(f"Extracting gz file. {file_path=} {output_dir=}")
     if output_dir is None:
         output_dir = os.path.dirname(file_path)
     with gzip.open(file_path, 'rb') as f_in:

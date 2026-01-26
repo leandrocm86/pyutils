@@ -10,6 +10,7 @@ class Clock:
     def __init__(self, name: str | None = None):
         if name:
             Clock.clocks_by_name[name] = self
+        self.name = name
         self.last_timestamp = time.time()
         self.total_time = 0
 
@@ -27,4 +28,12 @@ class Clock:
 
     @classmethod
     def get(cls, clock_name: str) -> Clock:
-        return cls.clocks_by_name.setdefault(clock_name, Clock())
+        if clock_name not in cls.clocks_by_name:
+            Clock(clock_name)
+        return cls.clocks_by_name[clock_name]
+
+    def __str__(self):
+        return f"Clock('{self.name}'): {self.total_time:.2f}s"
+
+    def __repr__(self):
+        return f"Clock('{self.name}'): {self.total_time:.2f}s"

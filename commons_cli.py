@@ -1,14 +1,9 @@
 # Common modules bundle for CLI scripts.
-import sys  # type: ignore  # noqa
-import os  # type: ignore  # noqa
-import time  # type: ignore  # noqa
-from pathlib import Path  # type: ignore  # noqa
-from utils import log
-from utils.log import LOG  # type: ignore  # noqa
+import sys
 from utils import style
 from utils.pstr import pstr, ppstr  # type: ignore  # noqa
 from utils.cliparse import CliParser, Arg, OptArg, FlagArg, VarArgs  # type: ignore  # noqa
-from utils import system # type: ignore # noqa
+from utils import system  # type: ignore # noqa
 from types import FrameType, TracebackType
 from typing import TypeVar, Mapping, Sequence, Any
 
@@ -27,13 +22,11 @@ def setpostmortem():
     occur in scripts, by allowing the user to drop into a debugging session.
     """
     import pdb
+    from utils import log
 
-    def exception_handler(exc_type: type[BaseException],
-                          exc_value: BaseException,
-                          exc_traceback: TracebackType):
-
+    def exception_handler(exc_type: type[BaseException], exc_value: BaseException, exc_traceback: TracebackType):
         if exc_type == KeyboardInterrupt:
-            print('KEYBOARD INTERRUPTED!')
+            print("KEYBOARD INTERRUPTED!")
             return
 
         # The mods.log module has an exception handler too, so we should use it
@@ -45,25 +38,27 @@ def setpostmortem():
         options.append("p: pdb")
         try:
             import bpython  # type: ignore
+
             options.append("b: bpython")
         except ImportError as e:
-            LOG.warning("Bpython not available: %s", e)
+            log.warn("Bpython not available: %s", e)
             bpython = None  # Handle case where bpython is not installed
 
         try:
             # Import the frame inspector (adjust the import path as needed)
             from utils.frame_inspector import inspect_frames  # type: ignore
+
             options.append("i: inspect frames")
         except ImportError as e:
-            LOG.warning("Frame inspector not available: %s", e)
+            log.warn("Frame inspector not available: %s", e)
 
         options.append("q: quit (default)")
 
         prompt = f"Enter debug mode? ({', '.join(options)}) : "
         choice = input(prompt).lower()
 
-        if choice == 'i':
-            assert 'inspect_frames' in locals(), "Frame inspector not available"
+        if choice == "i":
+            assert "inspect_frames" in locals(), "Frame inspector not available"
             print("Starting interactive frame inspector...")
             try:
                 inspect_frames(exc_traceback, exc_type, exc_value)  # type: ignore
@@ -71,10 +66,10 @@ def setpostmortem():
                 print(f"Error starting frame inspector: {inspector_error}")
                 print("Falling back to pdb...")
                 pdb.post_mortem(exc_traceback)
-        elif choice == 'p':
+        elif choice == "p":
             print("Starting post-mortem debugging session with pdb...")
             pdb.post_mortem(exc_traceback)
-        elif choice == 'b' and bpython:
+        elif choice == "b" and bpython:
             print("Starting bpython REPL session...")
 
             # Traverse from outermost to innermost frame,
@@ -92,7 +87,7 @@ def setpostmortem():
                 all_locals.update(frame.f_locals)
 
             # Inject additional util modules
-            all_locals['pstr'] = pstr
+            all_locals["pstr"] = pstr
 
             # Start bpython with all variables available
             bpython.embed(locals_=all_locals)  # type: ignore
@@ -101,12 +96,12 @@ def setpostmortem():
             print("Skipping debug mode.")
 
     # Register the custom exception hook, only if we're not in interactive mode
-    if not hasattr(sys, 'ps1') or sys.stderr.isatty():
-        log.info('Setting up postmortem hook...')
+    if not hasattr(sys, "ps1") or sys.stderr.isatty():
+        log.info("Setting up postmortem hook...")
         sys.excepthook = exception_handler
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def int_input(prompt: str, domain: set[int] | None = None) -> int:
@@ -120,12 +115,12 @@ def int_input(prompt: str, domain: set[int] | None = None) -> int:
             if domain is None or num in domain:
                 return num
             else:
-                print('Input not in the allowed domain.')
+                print("Input not in the allowed domain.")
         except ValueError:
-            print('Invalid input, please enter an integer.')
+            print("Invalid input, please enter an integer.")
 
 
-def input_option(options: Mapping[str, T] | Sequence[T], prompt: str = 'Select option: ') -> T:
+def input_option(options: Mapping[str, T] | Sequence[T], prompt: str = "Select option: ") -> T:
     """
     Displays a list of options with indices, and prompts the user to select one.
 
@@ -138,12 +133,12 @@ def input_option(options: Mapping[str, T] | Sequence[T], prompt: str = 'Select o
     """
     var_chosen_options = input_options(options, prompt)
     while len(var_chosen_options) != 1:
-        print('Please select only one option.')
+        print("Please select only one option.")
         var_chosen_options = input_options(options, prompt=prompt)
     return var_chosen_options[0]
 
 
-def input_options(options: Mapping[str, T] | Sequence[T], prompt: str = 'Select option(s): ') -> tuple[T, ...]:
+def input_options(options: Mapping[str, T] | Sequence[T], prompt: str = "Select option(s): ") -> tuple[T, ...]:
     """
     Displays a list of options with indices, and prompts the user to select one or more.
 
@@ -155,13 +150,16 @@ def input_options(options: Mapping[str, T] | Sequence[T], prompt: str = 'Select 
         A tuple containing the option values chosen by the user.
     """
     indexed_options = list(options) if isinstance(options, Sequence) else list(options.values())
-    descriptions = {i: str(opt) for i, opt in enumerate(indexed_options)} \
-        if isinstance(options, Sequence) else {i: desc for i, desc in enumerate(options.keys())}
+    descriptions = (
+        {i: str(opt) for i, opt in enumerate(indexed_options)}
+        if isinstance(options, Sequence)
+        else {i: desc for i, desc in enumerate(options.keys())}
+    )
 
     opts: list[str] = []
     for i, desc in descriptions.items():
-        opts.append(f'{style.bold(str(i))} - {desc}')
-    print(style.create_panel('\n'.join(opts), expand=False, padding=0))
+        opts.append(f"{style.bold(str(i))} - {desc}")
+    print(style.create_panel("\n".join(opts), expand=False, padding=0))
 
     valid_indices = set(range(len(indexed_options)))
     while True:
@@ -177,6 +175,6 @@ def input_options(options: Mapping[str, T] | Sequence[T], prompt: str = 'Select 
                 return tuple(indexed_options[i] for i in sorted(list(chosen_indices)))
             else:
                 invalid = chosen_indices - valid_indices
-                print(f'Invalid index/indices: {", ".join(map(str, invalid))}')
+                print(f"Invalid index/indices: {', '.join(map(str, invalid))}")
         except ValueError:
-            print('Invalid input, please enter space-separated integers.')
+            print("Invalid input, please enter space-separated integers.")

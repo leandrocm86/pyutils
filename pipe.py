@@ -30,3 +30,53 @@ if __name__ == "__main__":
 
     # This would be caught by mypy/pyright
     # result: str = "hello" | add_one  # Type error! ✓
+
+@Pipeable
+def _str(x):
+    return str(x)
+
+
+@Pipeable
+def _int(x):
+    return int(x)
+
+
+@Pipeable
+def _float(x):
+    return float(x)
+
+
+@Pipeable
+def _bool(x):
+    return bool(x)
+
+
+@Pipeable
+def _set(x):
+    return set(x)
+
+
+@Pipeable
+def _tuple(x):
+    return tuple(x)
+
+
+@Pipeable
+def _len(x):
+    return len(x)
+
+
+@Pipeable
+def _strip(x: str):
+    return x.strip()
+
+
+@Pipeable
+def _upper(x: str):
+    return x.upper()
+
+
+@Pipeable
+def _lower(x: str):
+    return x.lower()
+

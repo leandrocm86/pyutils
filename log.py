@@ -21,11 +21,15 @@ LOG.setLevel(LOG_LEVEL_NUMBER)
 
 
 class CustomFormatter(logging.Formatter):
-    COLOR_BY_LEVEL = {
-        'DEBUG': style.Color.LOW_WHITE,
-        'INFO': style.Color.CYAN,
-        'WARNING': style.Color.YELLOW,
-        'ERROR': style.Color.RED
+    COLORS_BY_LEVEL: dict[str, tuple[style.Painter, style.Painter]] = {
+        'DEBUG': (style.get_painter(background=style.BGCOLOR.GRAY),
+                  style.get_painter(style.Color.LOW_WHITE)),
+        'INFO': (style.get_painter(background=style.BGCOLOR.CYAN),
+                 style.get_painter(style.Color.CYAN)),
+        'WARNING': (style.get_painter(background=style.BGCOLOR.BRIGHT_YELLOW),
+                    style.get_painter(style.Color.YELLOW)),
+        'ERROR': (style.get_painter(background=style.BGCOLOR.RED),
+                  style.get_painter(style.Color.RED))
     }
     PRIMITIVES = (int, str, bool, float)
 
@@ -36,8 +40,7 @@ class CustomFormatter(logging.Formatter):
         self.colored = colored
 
     def format(self, record: logging.LogRecord):
-        color = self.COLOR_BY_LEVEL.get(record.levelname) if self.colored else None
-        if record.args and color:
+        if record.args:
             if isinstance(record.args, tuple):
                 placeholders = re.findall(r'%[sdiouxXeEfFgGcra]', record.msg)
                 pargs: list[Any] = []
@@ -53,9 +56,11 @@ class CustomFormatter(logging.Formatter):
             else:
                 record.args = pstr(record.args, colored=self.colored)  # type: ignore
         formatted_msg = super().format(record)
-        if color:
-            painter = style.get_painter(color)
-            return painter('_'*60 + '\n' + formatted_msg)
+        header_painter, message_painter = self.COLORS_BY_LEVEL[record.levelname] if self.colored else (None, None)
+        if message_painter and header_painter:
+            index_message = 11 + len(record.levelname)
+            # return header_painter('_'*60 + '\n' + formatted_msg)
+            return header_painter(formatted_msg[:index_message]) + message_painter(formatted_msg[index_message:])
         else:
             return formatted_msg
 

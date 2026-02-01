@@ -5,13 +5,13 @@ from typing import Callable, Optional
 import re
 import shutil
 
-from .pipe import Pipeable
+from utils.pipe import Pipeable
 
 
 class Format(Enum):
-    NORMAL = 0
-    BOLD = 1
-    UNDERLINE = 4
+    NORMAL = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 
 class Alignment(Enum):
@@ -41,9 +41,9 @@ class Color(Enum):
     LOW_CYAN = '\033[36m'
     LOW_WHITE = '\033[37m'
 
-    RED = '\033[38;5;196m'
+    RED = '\033[38;5;009m'
     GREEN = '\033[38;5;82m'
-    YELLOW = '\033[38;5;190m'
+    YELLOW = '\033[38;5;011m'
     BLUE = '\033[38;5;39m'
     MAGENTA = '\033[38;5;165m'
     CYAN = '\033[38;5;87m'
@@ -51,15 +51,19 @@ class Color(Enum):
 
 
 class BGCOLOR(Enum):
-    BLACK = 40
-    RED = 41
-    GREEN = 42
-    YELLOW = 43
-    BLUE = 44
-    MAGENTA = 45
-    CYAN = 46
-    WHITE = 47
+    BLACK = '\033[40m'
+    RED = '\033[41m'
+    GREEN = '\033[42m'
+    YELLOW = '\033[43m'
+    BLUE = '\033[44m'
+    MAGENTA = '\033[45m'
+    CYAN = '\033[46m'
+    WHITE = '\033[47m'
+    GRAY = '\033[48;5;240m'
+    BRIGHT_YELLOW = '\033[48;5;214m'
 
+
+Painter = Callable[[str], str]
 
 def get_painter(color: Optional[Color] = None,
                 background: Optional[BGCOLOR] = None,
@@ -69,9 +73,9 @@ def get_painter(color: Optional[Color] = None,
     if color:
         var_prefix = color.value
     if background:
-        var_prefix += f'\033[{background.value}m'
+        var_prefix += background.value
     if format:
-        var_prefix += f'\033[{format.value}m'
+        var_prefix += format.value
 
     def painter(text: str) -> str:
         text = text.replace('\033[0m', '\033[0m' + var_prefix)

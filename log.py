@@ -32,6 +32,8 @@ class CustomFormatter(logging.Formatter):
                   style.get_painter(style.Color.RED))
     }
     PRIMITIVES = (int, str, bool, float)
+    PARAM_COLOR_START = style.Color.ORANGE.value
+    PARAM_COLOR_RESET = '\033[0m'
 
     # def __init__(self, fmt: str = f'%(asctime)s [{sys.argv[0]}] [%(levelname)s] %(message)s',
     def __init__(self, fmt: str = '%(asctime)s [%(levelname)s] %(message)s',
@@ -40,26 +42,21 @@ class CustomFormatter(logging.Formatter):
         self.colored = colored
 
     def format(self, record: logging.LogRecord):
-        if record.args:
-            if isinstance(record.args, tuple):
-                placeholders = re.findall(r'%[sdiouxXeEfFgGcra]', record.msg)
-                pargs: list[Any] = []
-                for idx, arg in enumerate(record.args):
-                    if len(placeholders) > idx and placeholders[idx] == '%s':  # Apenas colorimos args usados com %s
-                        if not arg or isinstance(arg, self.PRIMITIVES):
-                            pargs.append(style.orange(str(arg)))
-                        else:
-                            pargs.append(pstr(arg, colored=self.colored))
-                    else:
-                        pargs.append(arg)
-                record.args = tuple(pargs)
-            else:
-                record.args = pstr(record.args, colored=self.colored)  # type: ignore
+        if self.colored and record.args:
+            # Wrap the placeholders with a highlight color
+            record.msg = re.sub(
+                r'(%[-#0 +]?(?:\*|\d+)?(?:\.(?:\*|\d+))?[hlL]?[diouxXeEfFgGcrs])',
+                self.PARAM_COLOR_START + r'\1' + self.PARAM_COLOR_RESET,
+                record.msg
+            )
+        
+        # Let super().format() do the actual formatting
         formatted_msg = super().format(record)
-        header_painter, message_painter = self.COLORS_BY_LEVEL[record.levelname] if self.colored else (None, None)
+
+        # Apply header and message coloring
+        header_painter, message_painter = self.COLORS_BY_LEVEL.get(record.levelname, (None, None)) if self.colored else (None, None)
         if message_painter and header_painter:
             index_message = 11 + len(record.levelname)
-            # return header_painter('_'*60 + '\n' + formatted_msg)
             return header_painter(formatted_msg[:index_message]) + message_painter(formatted_msg[index_message:])
         else:
             return formatted_msg

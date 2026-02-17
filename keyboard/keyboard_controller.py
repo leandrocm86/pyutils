@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import sleep, time
-from .. import log, system
+from utils import log, system
 from .keyboard_robot import KeyboardEvdevRobot, KeyboardPynputRobot
 from .keyboard_events import EventType, KeyboardEvent
 

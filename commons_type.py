@@ -1,6 +1,7 @@
 # Common modules bundle for typed scripts.
 from datetime import datetime, timedelta, date  # type: ignore  # noqa
-from typing import Annotated, Type, TypeVar, TypeAlias, Self, Any, Mapping as Map, Sequence as Seq, Set  # type: ignore  # noqa
+from typing import Annotated, Type, TypeVar, TypeAlias, Self, Any, Mapping, Sequence, Set  # type: ignore  # noqa
+from typing import Mapping as Map, Sequence as Seq  # type: ignore  # noqa
 from abc import ABC, abstractmethod  # type: ignore  # noqa
 from typing import Iterable  # noqa
 from dataclasses import dataclass, field  # type: ignore  # noqa

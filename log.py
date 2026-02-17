@@ -49,7 +49,7 @@ class CustomFormatter(logging.Formatter):
                 self.PARAM_COLOR_START + r'\1' + self.PARAM_COLOR_RESET,
                 record.msg
             )
-        
+
         # Let super().format() do the actual formatting
         formatted_msg = super().format(record)
 
@@ -70,6 +70,8 @@ if LOG_FILENAME:
     handlers_msgs.append(f'Added file handler for logger with level {LOG_LEVEL_NAME} on file {LOG_FILENAME}')
 if SYSTEMD:
     # sudo apt install libsystemd-dev pkg-config; pip install systemd-python
+    from .system import install_external_libs
+    install_external_libs({'systemd': 'systemd-python'})
     from systemd import journal
     from types import MappingProxyType
     # Override mapping: INFO (6 on journald) to 5 (notice),
@@ -104,46 +106,20 @@ print('. '.join(handlers_msgs))
 LOG.debug('. '.join(handlers_msgs))
 
 
-def _concat(*args: tuple[Any, ...]) -> str:
-    out = ''
-    for arg in args:
-        out += arg if isinstance(arg, str) else str(arg)
-    return out
-
-
 def debug(*args: Any):
-    if LOG_LEVEL_NUMBER == logging.DEBUG:
-        if len(args) > 1 and '%' in args[0]:
-            LOG.debug(*args)
-        else:
-            msg = _concat(*args)
-            LOG.debug(msg)
+    LOG.debug(*args)
 
 
 def info(*args: Any):
-    if LOG_LEVEL_NUMBER <= logging.INFO:
-        if len(args) > 1 and '%' in args[0]:
-            LOG.info(*args)
-        else:
-            msg = _concat(*args)
-            LOG.info(msg)
+    LOG.info(*args)
 
 
 def warn(*args: Any):
-    if len(args) > 1 and '%' in args[0]:
-        LOG.warning(*args)
-    else:
-        if LOG_LEVEL_NUMBER <= logging.WARNING:
-            msg = _concat(*args)
-            LOG.warning(msg)
+    LOG.warning(*args)
 
 
 def error(*args: Any, exception: bool = False):
-    if len(args) > 1 and '%' in args[0]:
-        LOG.error(*args, exc_info=exception)
-    else:
-        msg = _concat(*args)
-        LOG.error(msg, exc_info=exception, stack_info=exception)
+    LOG.error(*args, exc_info=exception, stack_info=exception)
 
 
 @dataclass
@@ -190,20 +166,6 @@ def __print_frame_info(frame: FrameType, line_number: int, frame_number: int, ma
         print("  (no local variables)")
 
     print("-" * 60)
-
-    # Show arguments passed to the function
-    # if frame.f_code.co_argcount > 0:
-#         print("\nFunction arguments:")
-#         arg_names = frame.f_code.co_varnames[:frame.f_code.co_argcount]
-#         for arg_name in arg_names:
-#             if arg_name in locals_dict:
-#                 try:
-#                     value_str = pstr(locals_dict[arg_name], colored=ExceptionsConfig.colored_print)
-#                     if len(value_str) > 200:
-#                         value_str = value_str[:200] + "..."
-#                     print(f"  {arg_name:15} = {value_str}")
-#                 except Exception as e:
-#                     print(f"  {arg_name:15} = <Error: {e}>")
 
 
 def _inspect_exception_hook(exc_type: type,

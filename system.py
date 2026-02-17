@@ -1,6 +1,7 @@
 import subprocess
 from typing import Any, Callable, Iterable, Optional
 
+
 # A grande vantagem de usar este mod em vez de subprocess diretamente
 # é que ele utiliza parâmetros padrão mais seguros:
 # - check=True: lança exceção se o comando falhar (exit code != 0)
@@ -73,23 +74,47 @@ def exec_async(cmd: str | Iterable[str], logfunc: Optional[Callable[[str], None]
     subprocess.Popen(args=cmd, shell=shell)  # type: ignore
 
 
-def install_external_libs(*module_names: str):
+def install_external_libs(*modules: str | dict, auto=False):
     """
     Installs the given modules in the current system, using pip, if they are not already present.
     Params:
         module_names: The module names to import, as recognized by pip.
+            If the name of the module is the same as the pip package, only a string is necessary.
+            Otherwise, a dict must be given where the imported modules are keys and install packages are values.
+        auto: If True, automatically confirms installation when not in interactive mode.
     Returns:
         The imported modules
     """
-    import importlib
-    for modname in module_names:
+
+    def install(modname: str, pipname: str):
+        import importlib
+        import os
+        debug, warn = print, print
+        if os.environ.get('SYSTEMD'):
+            from utils import log
+            debug, warn = log.debug, log.warn
         try:
+            debug(f"Loading external module {modname}...")
             importlib.import_module(modname)
         except ImportError:
-            print(f'WARNING: Required module {modname} is not installed. Will try to install via pip...')
             import sys
-            exec([sys.executable, '-m', 'pip', 'install', modname], ignore_output=True, timeout=120)
-            print(f'Module {modname} installed successfully!')
+            if sys.stdout.isatty():
+                from . import bool_input
+                isok = bool_input(f'WARNING: Required module {modname} is not installed. Should try to install {pipname} via pip?', default=True)
+                if not isok:
+                    return
+            elif not auto:
+                warn(f'WARNING: Required module {modname} is not installed!')
+                return
+            exec([sys.executable, '-m', 'pip', 'install', pipname], ignore_output=True, timeout=120)
+            warn(f'Module {modname} installed successfully!')
+
+    for module in modules:
+        if isinstance(module, dict):
+            for modulename, packagename in module.items():
+                install(modulename, packagename)
+        else:
+            install(module, module)
 
 
 def get_memory_from_proc() -> tuple[int, int, int]:

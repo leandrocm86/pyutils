@@ -3,7 +3,6 @@ import sys
 from utils import style
 from utils.pstr import pstr, ppstr  # type: ignore  # noqa
 from utils.cliparse import CliParser, Arg, OptArg, FlagArg, VarArgs  # type: ignore  # noqa
-from utils import system  # type: ignore # noqa
 from types import FrameType, TracebackType
 from typing import TypeVar, Mapping, Sequence, Any
 
@@ -25,7 +24,7 @@ def setpostmortem():
     from utils import log
 
     def exception_handler(exc_type: type[BaseException], exc_value: BaseException, exc_traceback: TracebackType):
-        if exc_type == KeyboardInterrupt:
+        if exc_type is KeyboardInterrupt:
             print("KEYBOARD INTERRUPTED!")
             return
 
@@ -118,6 +117,25 @@ def int_input(prompt: str, domain: set[int] | None = None) -> int:
                 print("Input not in the allowed domain.")
         except ValueError:
             print("Invalid input, please enter an integer.")
+
+
+def bool_input(prompt: str = "Enter a boolean value", true_value: str = "y", false_value: str = "n", default: bool = False) -> bool:
+    """
+    Prompts the user for a boolean input, retrying until a valid boolean is provided.
+    """
+    while True:
+        true_value = true_value.upper() if default is True else true_value.lower()
+        false_value = false_value.upper() if default is False else false_value.lower()
+        prompt = f'{prompt} ({true_value}/{false_value}): '
+        response = input(prompt).strip()
+        if response.lower() == true_value.lower():
+            return True
+        elif response.lower() == false_value.lower():
+            return False
+        elif response == "":
+            return default
+        else:
+            print(f"Invalid input, please enter '{true_value}' or '{false_value}'.")
 
 
 def input_option(options: Mapping[str, T] | Sequence[T], prompt: str = "Select option: ") -> T:

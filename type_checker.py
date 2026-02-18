@@ -429,16 +429,32 @@ def valpath(value: Path,
     check_type(value, Path)
 
     def __verify_parents_permissions() -> str:
-        unexec_parents: list[Path] = []
         var_current = value
         while var_current != var_current.parent:  # Stop at root directory
             var_current = var_current.parent
-            if not os.access(var_current, os.X_OK):   # Check if parent is traversable (has execute permission)
-                unexec_parents.append(var_current)
-        if unexec_parents:
-            return "\nThe following parent folders seem to miss execute permission (or don't exist): " \
-                + ', '.join(str(p) for p in unexec_parents)
+            if var_current.exists() and not os.access(var_current, os.X_OK):   # Check if parent is traversable
+                return 'parent folders seem to miss execute permission'
         return ''
+
+    needs_traversal = (
+        exists is True or
+        is_dir_if_exists is not None or
+        can_read_if_exists is not None or
+        can_modify_if_exists is not None or
+        can_execute_if_exists is not None or
+        can_create_if_not_exists is True
+    )
+
+    if needs_traversal:
+        try:
+            if not value.exists():
+                permission_error = __verify_parents_permissions()
+                if permission_error:
+                    _error(permission_error)
+        except PermissionError:
+            # This can happen if the user running the script can't even access the parent directory
+            _error('parent folders seem to miss execute permission')
+
 
     def __verify_path_exists() -> str:
         try:

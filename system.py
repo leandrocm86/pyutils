@@ -89,15 +89,15 @@ def install_external_libs(*modules: str | dict, auto=False):
     def install(modname: str, pipname: str):
         import importlib
         import os
+        import sys
         debug, warn = print, print
-        if os.environ.get('SYSTEMD'):
+        if os.environ.get('SYSTEMD') or 'utils.log' in sys.modules:
             from utils import log
             debug, warn = log.debug, log.warn
         try:
             debug(f"Loading external module {modname}...")
             importlib.import_module(modname)
         except ImportError:
-            import sys
             if sys.stdout.isatty():
                 from . import bool_input
                 isok = bool_input(f'WARNING: Required module {modname} is not installed. Should try to install {pipname} via pip?', default=True)

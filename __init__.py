@@ -1,7 +1,7 @@
-from clock import Clock
-from commons_cli import input_options, int_input, bool_input, input_option, input_options, setpostmortem
-from type_checker import valbool, valint, valfloat, valmap, valobj, valpath, valseq, valset, valstr
-from moeda import Moeda
-from mut import Mut
-from pstr import pstr, ppstr
-from system import install_external_libs
+from .clock import Clock  #type:ignore #noqa
+from .commons_cli import bool_input, input_option, input_options, int_input, setpostmortem  #type:ignore #noqa
+from .type_checker import valbool, valint, valfloat, valmap, valobj, valpath, valseq, valset, valstr  #type:ignore #noqa
+from .moeda import Moeda  #type:ignore #noqa
+from .mut import Mut  #type:ignore #noqa
+from .pstr import pstr, ppstr  #type:ignore #noqa
+from .system import install_external_libs  #type:ignore #noqa

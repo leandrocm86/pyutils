@@ -1,0 +1,14 @@
+[project]
+name = "utils"
+version = "0.1.0"
+description = "Personal utility modules"
+requires-python = ">=3.11"
+dependencies = [
+    "systemd-python",   # journald bindings
+    "cryptography",
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["utils*"]

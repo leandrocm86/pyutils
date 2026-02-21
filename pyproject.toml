@@ -1,14 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "utils"
-version = "0.1.0"
-description = "Personal utility modules"
+version = "0.2.0"
+description = "Personal utility python modules"
 requires-python = ">=3.11"
-dependencies = [
+
+[project.optional-dependencies]
+full = [
     "systemd-python",   # journald bindings
     "cryptography",
     "pytest",
 ]
 
 [tool.setuptools.packages.find]
-where = [".."]
-include = ["utils*"]
+where = ["."]
+#include = ["utils*"]

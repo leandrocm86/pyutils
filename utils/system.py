@@ -88,8 +88,18 @@ def install_external_libs(*modules: str | dict, auto=False):
 
     def install(modname: str, pipname: str):
         import importlib
+        import os
         import sys
-        debug, warn = lambda x: print(f'[DEBUG] {x}', flush=True), lambda x: print(f'[WARN] {x}', flush=True)
+
+        CURRENT_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG')  # por padrao loga tudo
+        def printlog(msg: str, level: str):
+            if level == 'DEBUG':
+                if CURRENT_LEVEL == 'DEBUG':
+                    print(f'[DEBUG] {msg}', flush=True)
+            elif CURRENT_LEVEL != 'OFF':  # Assumindo que o ambiente, se definido, vai ser no minimo INFO
+                print(f'[{level}] {msg}', flush=True)
+
+        debug, warn = lambda x: printlog(x, 'DEBUG'), lambda x: printlog(x, 'WARN')
         try:
             debug(f"Loading external module {modname}...")
             importlib.import_module(modname)

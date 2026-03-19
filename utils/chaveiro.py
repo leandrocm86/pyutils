@@ -52,7 +52,7 @@ def decrypt_aes(ciphertext: str, key_path: str) -> str:
     decoded_data = base64.b64decode(ciphertext.encode('utf-8'))
     nonce = decoded_data[:12]
     tag = decoded_data[12:28]  # GCM tag is 16 bytes
-    ciphertext = decoded_data[28:]
+    ciphertext = decoded_data[28:]  # type:ignore
     cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag), backend=default_backend())
     decryptor = cipher.decryptor()
     plaintext = decryptor.update(ciphertext) + decryptor.finalize()

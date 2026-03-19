@@ -11,6 +11,8 @@ import urllib.parse
 from typing import Optional, Dict, Any, Union
 from http.client import HTTPResponse
 
+from . import log
+
 
 class Response:
     """
@@ -128,6 +130,7 @@ def _make_request(
             method=method
         )
 
+        log.debug('Requesting %s', url)
         raw_response = urllib.request.urlopen(req, timeout=timeout)
         return Response(raw_response)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import subprocess
 from pathlib import Path
 from typing import Callable, TypeVar
 
@@ -156,6 +157,11 @@ class SeleniumElement:
         return str(self)
 
 
+def get_chrome_major_version():
+    out = subprocess.run(['google-chrome', '--version'], capture_output=True, text=True)
+    return int(out.stdout.strip().split()[-1].partition('.')[0])
+
+
 class SeleniumDriver:
     def __init__(
         self,
@@ -173,10 +179,13 @@ class SeleniumDriver:
         if not options:
             options = self.build_default_options()
 
+        chrome_version = get_chrome_major_version()
+        logfunc(f'{chrome_version=}')
+
         if driver_path:
-            self.driver = uc.Chrome(options=options, driver_executable_path=driver_path)
+            self.driver = uc.Chrome(options=options, version_main=chrome_version, driver_executable_path=driver_path)
         else:
-            self.driver = uc.Chrome(options=options)
+            self.driver = uc.Chrome(options=options, version_main=chrome_version)
 
         self.logfunc = logfunc
         self.logfunc("Starting Selenium driver")

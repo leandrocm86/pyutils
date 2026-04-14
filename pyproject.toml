@@ -9,8 +9,7 @@ description = "Personal utility python modules"
 requires-python = ">=3.11"
 
 [project.optional-dependencies]
-basic = [
-    "cryptography",
+test = [
     "pytest"
 ]
 selenium = [

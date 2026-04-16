@@ -12,12 +12,6 @@ requires-python = ">=3.11"
 test = [
     "pytest"
 ]
-selenium = [
-    "selenium",
-    "undetected_chromedriver",
-    "setuptools",
-    "xvfbwrapper"
-]
 
 # [tool.setuptools.packages.find]
 # where = ["."]

@@ -1,5 +1,7 @@
 # Common modules bundle for CLI scripts.
 import sys
+import os   # type: ignore  # noqa
+from utils import system  # type: ignore  # noqa
 from utils import style
 from utils.pstr import pstr, ppstr  # type: ignore  # noqa
 from utils.cliparse import CliParser, Arg, OptArg, FlagArg, VarArgs  # type: ignore  # noqa

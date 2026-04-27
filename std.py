@@ -1,0 +1,196 @@
+#############################################################
+# Modulo wrapper agrupando toda a standard library do python.
+# Visa facilitar (reduzindo) os imports em cada script.
+#############################################################
+
+import abc
+import argparse
+import array
+import ast
+import asyncio
+import atexit
+import base64
+import bdb
+import binascii
+import bisect
+import builtins
+import bz2
+import calendar
+import cmath
+import cmd
+import code
+import codecs
+import codeop
+import collections
+import colorsys
+import compileall
+import concurrent
+import configparser
+import contextlib
+import contextvars
+import copy
+import copyreg
+import cProfile
+import csv
+import ctypes
+import curses
+import dataclasses
+import datetime
+import dbm
+import decimal
+import difflib
+import dis
+import doctest
+import email
+import encodings
+import enum
+import errno
+import faulthandler
+import fcntl
+import filecmp
+import fileinput
+import fnmatch
+import fractions
+import ftplib
+import functools
+import gc
+import genericpath
+import getopt
+import getpass
+import gettext
+import glob
+import graphlib
+import grp
+import gzip
+import hashlib
+import heapq
+import hmac
+import html
+import http
+import imaplib
+import importlib
+import inspect
+import io
+import ipaddress
+import itertools
+import json
+import keyword
+import linecache
+import locale
+import logging
+import lzma
+import mailbox
+import marshal
+import math
+import mimetypes
+import mmap
+import modulefinder
+import multiprocessing
+import netrc
+import ntpath
+import nturl2path
+import numbers
+import opcode
+import operator
+import optparse
+import os
+import pathlib
+import pdb
+import pickle
+import pickletools
+import pkgutil
+import platform
+import plistlib
+import poplib
+import posix
+import posixpath
+import pprint
+import profile
+import pstats
+import pty
+import pwd
+import py_compile
+import pyclbr
+import pydoc
+import pydoc_data
+import pyexpat
+import queue
+import quopri
+import random
+import re
+import readline
+import reprlib
+import resource
+import rlcompleter
+import runpy
+import sched
+import secrets
+import select
+import selectors
+import shelve
+import shlex
+import shutil
+import signal
+import site
+import smtplib
+import socket
+import socketserver
+import sqlite3
+import ssl
+import stat
+import statistics
+import string
+import stringprep
+import struct
+import subprocess
+import symtable
+import sys
+import sysconfig
+import syslog
+import tabnanny
+import tarfile
+import tempfile
+import termios
+import textwrap
+import threading
+import time
+import timeit
+
+# tkinter is not available in all python installations
+# import tkinter
+import token
+import tokenize
+import trace
+import traceback
+import tracemalloc
+import tty
+import types
+import typing
+import unicodedata
+import unittest
+import urllib
+import uuid
+import venv
+import warnings
+import wave
+import weakref
+import webbrowser
+import wsgiref
+import xml
+import xmlrpc
+import zipapp
+import zipfile
+import zipimport
+import zlib
+import zoneinfo
+
+import tomllib
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from enum import Enum
+from pathlib import Path
+from statistics import mean, fmean
+from typing import Any, Callable, cast, Collection, Final, FrozenSet, Iterable, Mapping, Optional, override, Sequence, Set, Type, TypeVar

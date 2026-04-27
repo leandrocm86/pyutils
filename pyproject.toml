@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "utils"
+name = "pyutils"
 version = "0.2.0"
 description = "Personal utility python modules"
 requires-python = ">=3.11"
@@ -13,9 +13,5 @@ test = [
     "pytest"
 ]
 
-# [tool.setuptools.packages.find]
-# where = ["."]
-#include = ["utils*"]
-
-[tool.setuptools.package-data]
-"utils" = ["*.pyi", "py.typed"]
+[tool.hatch.build.targets.wheel]
+packages = ["utils", "std"]

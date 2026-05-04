@@ -7,6 +7,7 @@ from types import FrameType, TracebackType
 from typing import Any
 
 
+RE_PLACEHOLDER = re.compile(r"(%p(?:\.(\d+))?(?:\.(\d+))?)|(%%)|(%[-#0 +]?(?:\*|\d+)?(?:\.(?:\*|\d+))?[hlL]?[diouxXeEfFgGcrs])")
 LOG_FILENAME = environ.get("LOG_FILE")
 LOG_LEVEL_NAME = environ.get("LOG_LEVEL", "").upper() or (
     "DEBUG" if sys.stdout.isatty() else "INFO"
@@ -74,24 +75,48 @@ if not (LOG_FILENAME or SYSTEMD) or sys.stdout.isatty():
         PARAM_COLOR_RESET = "\033[0m"
 
         def __init__(self):
+            from .pstr import pstr
             super().__init__(fmt="%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
 
         def format(self, record: logging.LogRecord):
             if record.args:
-                # Wrap the placeholders with a highlight color
-                record.msg = re.sub(
-                    r"(%[-#0 +]?(?:\*|\d+)?(?:\.(?:\*|\d+))?[hlL]?[diouxXeEfFgGcrs])",
-                    self.PARAM_COLOR_START + r"\1" + self.PARAM_COLOR_RESET,
-                    record.msg,
-                )
+                args = list(record.args) if isinstance(record.args, tuple) else [record.args]
+                new_args = []
+                arg_index = 0
+
+                def replace_placeholder(match):
+                    nonlocal arg_index
+                    if match.group(1):  # %p
+                        maxlen = int(match.group(2)) if match.group(2) else 50
+                        maxdepth = int(match.group(3)) if match.group(3) else 3
+                        pretty = pstr(
+                            args[arg_index],
+                            colored=True,
+                            maxlen=maxlen,
+                            maxdepth=maxdepth,
+                        )
+                        new_args.append(pretty)
+                        arg_index += 1
+                        return "%s"  # no color wrapping — intentionally plain
+                    elif match.group(4):  # %%
+                        return "%%"
+                    else:  # standard placeholder
+                        new_args.append(args[arg_index])
+                        arg_index += 1
+                        return self.PARAM_COLOR_START + match.group(5) + self.PARAM_COLOR_RESET
+
+                record.msg = RE_PLACEHOLDER.sub(replace_placeholder, record.msg)
+                record.args = tuple(new_args)
 
             var_formatted_msg = super().format(record)
 
-            # Apply header and message coloring
             header_painter, message_painter = self.COLORS_BY_LEVEL.get(record.levelname, (None, None))
             if message_painter and header_painter:
                 index_message = 11 + len(record.levelname)
-                var_formatted_msg = header_painter(var_formatted_msg[:index_message]) + message_painter(var_formatted_msg[index_message:])
+                var_formatted_msg = (
+                    header_painter(var_formatted_msg[:index_message])
+                    + message_painter(var_formatted_msg[index_message:])
+                )
 
             return var_formatted_msg
 

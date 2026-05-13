@@ -148,7 +148,7 @@ def error(*args: Any, exception: bool = False):
 
 @dataclass
 class ExceptionsConfig:
-    max_frames: int = 1 if sys.stdout.isatty() else 3
+    max_frames: int = 3 if sys.stdout.isatty() else 5
     colored_print: bool = sys.stdout.isatty()
     suppress_default_stacktrace: bool = False
 
@@ -181,11 +181,11 @@ def __print_frame_info(frame: FrameType, line_number: int, frame_number: int, ma
             name: value for name, value in locals_dict.items() if name in source_line
         }
     if locals_dict:
-        name_padding = max(len(name) for name in locals_dict.keys())
+        # name_padding = max(len(name) for name in locals_dict.keys())
         for name, value in sorted(locals_dict.items()):
             try:
                 # Use pstr for better formatting of complex objects
-                maxlen = 50 if isinstance(value, str) else 10
+                maxlen = 50 if isinstance(value, str) else 4
                 value_str = pstr(
                     value,
                     colored=ExceptionsConfig.colored_print,
@@ -193,13 +193,17 @@ def __print_frame_info(frame: FrameType, line_number: int, frame_number: int, ma
                     maxdepth=3,
                 )
                 # Truncate very long values
-                print(f"  {name:>{name_padding}} = {value_str}")
+                # print(f"  {name:>{name_padding}} = {value_str}")
+                if sys.stdout.isatty():
+                    print(f"\x1b[1m{name}\x1b[0m = {value_str}\n")
+                else:
+                    print(f"{name} = {value_str}")
             except Exception as e:
-                print(f"  {name:>{name_padding}} = <Error: {e}>")
+                print(f"{name} = <Error: {e}>")
     else:
         print("  (no local variables)")
 
-    print("-" * 60)
+    print("-" * 50)
 
 
 try:
@@ -234,7 +238,7 @@ else:
             print("No frames to inspect in traceback")
             return
 
-        print("=" * 25 + " STACK DETAILS " + "=" * 25)
+        print("=" * 20 + " STACK DETAILS " + "=" * 20)
 
         # Limit to last max_frames if specified
         if len(frames) > MAX_FRAMES:

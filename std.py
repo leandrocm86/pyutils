@@ -193,4 +193,4 @@ from decimal import Decimal
 from enum import Enum
 from pathlib import Path
 from statistics import mean, fmean
-from typing import Any, Callable, cast, Collection, Final, FrozenSet, Iterable, Mapping, Optional, override, Sequence, Set, Type, TypeVar
+from typing import Any, Callable, cast, Collection, Final, FrozenSet, Iterable, Mapping, Optional, override, Self, Sequence, Set, Type, TypeVar

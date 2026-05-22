@@ -62,16 +62,29 @@ def read(cmd: str | Iterable[str],
     return result.stdout.strip() + result.stderr.strip()
 
 
-def exec_async(cmd: str | Iterable[str], logfunc: Optional[Callable[[str], None]] = print):
+def exec_async(cmd: str | Iterable[str],
+        logfunc: Optional[Callable[[str], None]] = print,
+        envs_to_keep: Optional[set[str]] = None
+):
     """
     Execute the commands on the OS, not waiting for their output.
     It's not possible to check the output, nor setting a timeout.
     If cmd is a string, it will be executed with shell=True (not recommended if there's user input).
     """
-    if logfunc:
-        logfunc(f'Executing asynchronously: {cmd}')
     shell = isinstance(cmd, str)
-    subprocess.Popen(args=cmd, shell=shell)  # type: ignore
+    
+    values_by_envs: dict[str, str] = {}
+    if envs_to_keep:
+        from os import environ
+        for name in envs_to_keep:
+            if value := environ.get(name):
+                values_by_envs[name] = value
+
+    if logfunc:
+        logfunc(f'Executing asynchronously: {cmd}. Envs preserved: {values_by_envs.keys()}')
+    subprocess.Popen(args=cmd, shell=shell,  # type: ignore
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        start_new_session=True, close_fds=True, env=values_by_envs)
 
 
 def install_external_libs(*modules: str | dict, auto=False):

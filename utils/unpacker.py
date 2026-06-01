@@ -5,9 +5,7 @@ import gzip
 import shutil
 import re
 from pathlib import Path
-from typing import Optional, List, Dict, Any
-
-from utils.log import LOG
+from typing import Callable, Optional, List, Dict, Any
 
 StrPath = Path | str
 
@@ -187,7 +185,7 @@ def get_gz_details(file_path: StrPath) -> List[Dict[str, Any]]:
 
 
 def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
-                      preserve_structure: bool = True) -> list[str]:
+                      preserve_structure: bool = True, logfunc: Callable[[str], None] = print) -> list[str]:
     """
     Function that checks the given compressed file's extension and extracts it with the appropriate module.
     It accepts .zip, .tar.gz and .gz files.
@@ -200,7 +198,7 @@ def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
 
     ext = match.group(1).lower()
 
-    LOG.info(f"Extracting {file_path} to {str(output_dir) if output_dir else 'the same folder'}, {preserve_structure=}")
+    logfunc(f"Extracting {file_path} to {str(output_dir) if output_dir else 'the same folder'}, {preserve_structure=}")
 
     if ext == '.tar.gz':
         extracted_gz = extract_gz_file(file_path, output_dir)
@@ -208,7 +206,7 @@ def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
     elif ext == '.tar':
         return extract_tar_file(file_path, output_dir, preserve_structure)
     elif ext == '.zip':
-        return extract_zip_file(file_path, output_dir, preserve_structure)
+        return extract_zip_file(file_path, output_dir, preserve_structure, logfunc=logfunc)
     elif ext == '.gz':
         return [extract_gz_file(file_path, output_dir)]
 
@@ -216,7 +214,7 @@ def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
 
 
 def extract_tar_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
-                     preserve_structure: bool = True) -> list[str]:
+                     preserve_structure: bool = True, logfunc: Callable[[str], None] = print) -> list[str]:
     """
     Extracts all files from a .tar or .tar.gz file into a specified output directory.
     By default, the files are extracted into the same directory of the compressed file (that can be changed with output_dir).
@@ -241,12 +239,12 @@ def extract_tar_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
             if member.isfile():
                 extracted_paths.append(os.path.join(output_dir, member.name))
 
-    LOG.info(f"Extracted tar file at {extracted_paths}")
+    logfunc(f"Extracted tar file at {extracted_paths}")
     return extracted_paths
 
 
 def extract_zip_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
-                     preserve_structure: bool = True) -> list[str]:
+                     preserve_structure: bool = True, logfunc: Callable[[str], None] = print) -> list[str]:
     """
     Extracts all files from a .zip file into a specified output directory.
     By default, the files are extracted into the same directory of the compressed file.
@@ -270,11 +268,11 @@ def extract_zip_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
                 safe_name = file.lstrip(os.sep)  # remove leading slashes
                 extracted_paths.append(os.path.join(output_dir, safe_name))
 
-    LOG.info(f"Extracted zip file at {extracted_paths}")
+    logfunc(f"Extracted zip file at {extracted_paths}")
     return extracted_paths
 
 
-def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None) -> str:
+def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None, logfunc: Callable[[str], None] = print) -> str:
     """
     Extracts a .gz file into a specified output directory.
     If no output directory is specified, the files are extracted into the same directory of the compressed file.
@@ -282,7 +280,7 @@ def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None) ->
     """
     file_name, ext = os.path.splitext(os.path.basename(file_path))
     assert ext.lower() == '.gz'
-    LOG.debug(f"Extracting gz file. {file_path=} {output_dir=}")
+    logfunc(f"Extracting gz file. {file_path=} {output_dir=}")
     if output_dir is None:
         output_dir = os.path.dirname(file_path)
     with gzip.open(file_path, 'rb') as f_in:
@@ -290,7 +288,7 @@ def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None) ->
         with open(decompressed_file_path, 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)  # type: ignore
 
-        LOG.info(f"Extracted gz file at {decompressed_file_path}")
+        logfunc(f"Extracted gz file at {decompressed_file_path}")
         return decompressed_file_path
 
 

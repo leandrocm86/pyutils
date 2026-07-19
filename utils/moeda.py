@@ -175,6 +175,9 @@ class Moeda:
     >>> Moeda('-10.00') + Moeda('5.00')
     Moeda('-5.00')
 
+    >>> Moeda('-1.909,41', br=True) < Moeda('-1000')
+    True
+
     # Hash (para uso em sets e dicts)
     >>> len({Moeda('10.00'), Moeda('10.00'), Moeda('20.00')})
     2
@@ -186,6 +189,10 @@ class Moeda:
     # Conversão para int (trunca)
     >>> int(Moeda('10.99'))
     10
+
+    # Removendo espacos em branco
+    >>> Moeda(' - 10.50 ')
+    Moeda('-10.50')
     """
 
     def __init__(self, valor: Union[int, float, Decimal, str], br: bool = False):
@@ -197,14 +204,15 @@ class Moeda:
             br: Se True, usa notação brasileira; se False (padrão), usa notação inglesa
         """
         if isinstance(valor, str):
+            var_valor_limpo = ''.join(valor.split())
             if br:
                 # Notação brasileira: ponto = separador de milhar, vírgula = decimal
-                self._validar_formato(valor, sep_milhar='.', sep_decimal=',', br=True)
-                var_valor_limpo = valor.replace('.', '').replace(',', '.')
+                self._validar_formato(var_valor_limpo, sep_milhar='.', sep_decimal=',', br=True)
+                var_valor_limpo = var_valor_limpo.replace('.', '').replace(',', '.')
             else:
                 # Notação inglesa: vírgula = separador de milhar, ponto = decimal
-                self._validar_formato(valor, sep_milhar=',', sep_decimal='.', br=False)
-                var_valor_limpo = valor.replace(',', '')
+                self._validar_formato(var_valor_limpo, sep_milhar=',', sep_decimal='.', br=False)
+                var_valor_limpo = var_valor_limpo.replace(',', '')
             var_valor = Decimal(var_valor_limpo)
         else:
             var_valor = Decimal(str(valor))
@@ -226,6 +234,9 @@ class Moeda:
         Raises:
             ValueError: Se o formato for inválido
         """
+        # Remove sinal de negativo para validação dos grupos
+        if valor.startswith('-'):
+            valor = valor[1:]
         if sep_milhar not in valor:
             # Não há separador de milhar, nada a validar
             return

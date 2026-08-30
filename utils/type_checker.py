@@ -6,7 +6,7 @@ from re import Pattern, compile
 from utils.pstr import pstr
 import os
 import sys
-
+import functools
 
 T = TypeVar('T')
 K = TypeVar('K')
@@ -17,6 +17,19 @@ C = TypeVar('C', bound=Collection[Any])
 class InvalidContractError(Exception):
     def __init__(self, msg: str):
         super().__init__(msg)
+
+
+def hide_internal_frames(exc_types=(TypeError, ValueError, InvalidContractError)):
+    """Decorator: collapses any internal call chain down to a single frame."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except exc_types as e:
+                raise type(e)(str(e)) from None
+        return wrapper
+    return decorator
 
 
 def _error(msg: str):
@@ -183,6 +196,7 @@ def __handle_custom_validation(value: T, custom: Optional[Callable[[T], bool]]):
             _error(f'Error when trying custom validation for {pstr(value)} of type {type(value)}: {e}')
 
 
+@hide_internal_frames()
 def valstr(value: str,
            length: Optional[int] = None,
            minlen: int = 0,
@@ -228,6 +242,7 @@ def valstr(value: str,
     return value
 
 
+@hide_internal_frames()
 def valint(value: int,
            min: Optional[int] = None,
            max: Optional[int] = None,
@@ -254,6 +269,7 @@ def valint(value: int,
     return value
 
 
+@hide_internal_frames()
 def valfloat(value: float,
              min: Optional[float] = None,
              max: Optional[float] = None,
@@ -280,6 +296,7 @@ def valfloat(value: float,
     return value
 
 
+@hide_internal_frames()
 def valbool(value: bool) -> bool:
     check_type(value, bool)
     return value
@@ -325,6 +342,7 @@ def __collectionok(value: C,
     __handle_custom_validation(value, custom)
 
 
+@hide_internal_frames()
 def valseq(value: Seq[T],
            elemtype: Type[T],
            length: Optional[int] = None,
@@ -345,6 +363,7 @@ def valseq(value: Seq[T],
     return value
 
 
+@hide_internal_frames()
 def valset(value: Set[T],
            elemtype: Type[T],
            length: Optional[int] = None,
@@ -365,6 +384,7 @@ def valset(value: Set[T],
     return value
 
 
+@hide_internal_frames()
 def valmap(value: Map[K, V],
            keytype: Type[K],
            valtype: Type[V],
@@ -411,6 +431,7 @@ def valmap(value: Map[K, V],
     return value
 
 
+@hide_internal_frames()
 def valpath(value: Path,
             exists: Optional[bool] = None,
             is_dir_if_exists: Optional[bool] = None,
@@ -531,6 +552,7 @@ def valpath(value: Path,
     return value
 
 
+@hide_internal_frames()
 def valobj(value: T, expected_type: Type[T], custom: Optional[Callable[[T], bool]] = None) -> T:
     """ Generic runtime validation for objects.
     Checks type and optionally given constraints, possibly raising

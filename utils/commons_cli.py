@@ -1,12 +1,84 @@
 # Common modules bundle for CLI scripts.
 import sys
 import os   # type: ignore  # noqa
-from utils import system  # type: ignore  # noqa
-from utils import style
+from utils import log, style
 from utils.pstr import pstr, ppstr  # type: ignore  # noqa
 from utils.cliparse import CliParser, Arg, OptArg, FlagArg, VarArgs  # type: ignore  # noqa
 from types import FrameType, TracebackType
 from typing import TypeVar, Mapping, Sequence, Any
+
+
+def pdb_exception_handler(exc_type: type[BaseException], exc_value: BaseException, exc_traceback: TracebackType | None):
+    import pdb
+    if exc_type is KeyboardInterrupt:
+        print("KEYBOARD INTERRUPTED!")
+        return
+
+    # The mods.log module has an exception handler too, so we should use it
+    log._inspect_exception_hook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback)  # type: ignore
+    print(f"Exception of type {exc_type.__name__} occurred: {style.red(str(exc_value))}")
+
+    # Build the prompt based on available options
+    options: list[str] = []
+    options.append("p: pdb")
+    try:
+        import bpython  # type: ignore
+
+        options.append("b: bpython")
+    except ImportError as e:
+        log.warn("Bpython not available: %s", e)
+        bpython = None  # Handle case where bpython is not installed
+
+    try:
+        # Import the frame inspector (adjust the import path as needed)
+        from utils.frame_inspector import inspect_frames  # type: ignore
+
+        options.append("i: inspect frames")
+    except ImportError as e:
+        log.warn("Frame inspector not available: %s", e)
+
+    options.append("q: quit (default)")
+
+    prompt = f"Enter debug mode? ({', '.join(options)}) : "
+    choice = input(prompt).lower()
+
+    if choice == "i":
+        assert "inspect_frames" in locals(), "Frame inspector not available"
+        print("Starting interactive frame inspector...")
+        try:
+            inspect_frames(exc_traceback, exc_type, exc_value)  # type: ignore
+        except Exception as inspector_error:
+            print(f"Error starting frame inspector: {inspector_error}")
+            print("Falling back to pdb...")
+            pdb.post_mortem(exc_traceback)
+    elif choice == "p":
+        print("Starting post-mortem debugging session with pdb...")
+        pdb.post_mortem(exc_traceback)
+    elif choice == "b" and bpython:
+        print("Starting bpython REPL session...")
+
+        # Traverse from outermost to innermost frame,
+        # collecting locals from all frames, innermost last (so it overwrites)
+        all_locals: dict[str, Any] = {}
+
+        frames: list[FrameType] = []
+        var_current_tb = exc_traceback
+        while var_current_tb:
+            frames.append(var_current_tb.tb_frame)
+            var_current_tb = var_current_tb.tb_next
+
+        # Merge locals from outermost to innermost (innermost overwrites)
+        for frame in frames:
+            all_locals.update(frame.f_locals)
+
+        # Inject additional util modules
+        all_locals["pstr"] = pstr
+
+        # Start bpython with all variables available
+        bpython.embed(locals_=all_locals)  # type: ignore
+
+    else:
+        print("Skipping debug mode.")
 
 
 def setpostmortem():
@@ -22,84 +94,10 @@ def setpostmortem():
     This is meant to be used as a way to debug unexpected exceptions that
     occur in scripts, by allowing the user to drop into a debugging session.
     """
-    import pdb
-    from utils import log
-
-    def exception_handler(exc_type: type[BaseException], exc_value: BaseException, exc_traceback: TracebackType):
-        if exc_type is KeyboardInterrupt:
-            print("KEYBOARD INTERRUPTED!")
-            return
-
-        # The mods.log module has an exception handler too, so we should use it
-        log._inspect_exception_hook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback)  # type: ignore
-        print(f"Exception of type {exc_type.__name__} occurred: {style.red(str(exc_value))}")
-
-        # Build the prompt based on available options
-        options: list[str] = []
-        options.append("p: pdb")
-        try:
-            import bpython  # type: ignore
-
-            options.append("b: bpython")
-        except ImportError as e:
-            log.warn("Bpython not available: %s", e)
-            bpython = None  # Handle case where bpython is not installed
-
-        try:
-            # Import the frame inspector (adjust the import path as needed)
-            from utils.frame_inspector import inspect_frames  # type: ignore
-
-            options.append("i: inspect frames")
-        except ImportError as e:
-            log.warn("Frame inspector not available: %s", e)
-
-        options.append("q: quit (default)")
-
-        prompt = f"Enter debug mode? ({', '.join(options)}) : "
-        choice = input(prompt).lower()
-
-        if choice == "i":
-            assert "inspect_frames" in locals(), "Frame inspector not available"
-            print("Starting interactive frame inspector...")
-            try:
-                inspect_frames(exc_traceback, exc_type, exc_value)  # type: ignore
-            except Exception as inspector_error:
-                print(f"Error starting frame inspector: {inspector_error}")
-                print("Falling back to pdb...")
-                pdb.post_mortem(exc_traceback)
-        elif choice == "p":
-            print("Starting post-mortem debugging session with pdb...")
-            pdb.post_mortem(exc_traceback)
-        elif choice == "b" and bpython:
-            print("Starting bpython REPL session...")
-
-            # Traverse from outermost to innermost frame,
-            # collecting locals from all frames, innermost last (so it overwrites)
-            all_locals: dict[str, Any] = {}
-
-            frames: list[FrameType] = []
-            var_current_tb = exc_traceback
-            while var_current_tb:
-                frames.append(var_current_tb.tb_frame)
-                var_current_tb = var_current_tb.tb_next
-
-            # Merge locals from outermost to innermost (innermost overwrites)
-            for frame in frames:
-                all_locals.update(frame.f_locals)
-
-            # Inject additional util modules
-            all_locals["pstr"] = pstr
-
-            # Start bpython with all variables available
-            bpython.embed(locals_=all_locals)  # type: ignore
-
-        else:
-            print("Skipping debug mode.")
-
     # Register the custom exception hook, only if we're not in interactive mode
     if not hasattr(sys, "ps1") or sys.stderr.isatty():
         log.info("Setting up postmortem hook...")
-        sys.excepthook = exception_handler
+        sys.excepthook = pdb_exception_handler
 
 
 T = TypeVar("T")

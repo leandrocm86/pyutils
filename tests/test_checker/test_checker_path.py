@@ -1,23 +1,119 @@
 import pytest
 import sys
+import os
 from pathlib import Path
 
 from utils.type_checker import valpath, InvalidContractError
 
-# Test paths that must be created previously.
-TEST_BASEPATH = Path(__file__).parent / 'path_examples'
+# Mock paths that do not rely on the real filesystem
+TEST_BASEPATH = Path('/mock/path_examples')
 WRX_DIR = TEST_BASEPATH / 'wrx_dir'
 WRX_DIR_WRX_FILE = WRX_DIR / 'wrx_file'
 WRX_DIR_ROOT_FILE = WRX_DIR / 'wrx_root_file'
 WRX_DIR_RX_FILE = WRX_DIR / 'rx_file'
 WRX_DIR_RX_SUBDIR = WRX_DIR / 'rx_subdir'
 WRX_DIR_RX_SUBDIR_R_FILE = WRX_DIR_RX_SUBDIR / 'r_file'
-WR_DIR = TEST_BASEPATH / 'wr_dir'  # May have to be added in pytest.ini to be ignored
+WR_DIR = TEST_BASEPATH / 'wr_dir'
 WR_DIR_WRX_FILE = WR_DIR / 'wrx_file'
 
 # Test paths that should not exist
 WRX_DIR_NON_EXISTENT = WRX_DIR / 'non_existent_dir'
 WRX_DIR_NON_EXISTENT_FILE = WRX_DIR / 'non_existent_file.txt'
+
+# Mock filesystem data representation
+MOCK_FS = {
+    str(TEST_BASEPATH): {
+        'exists': True,
+        'is_dir': True,
+        'permissions': {os.R_OK, os.W_OK, os.X_OK}
+    },
+    str(WRX_DIR): {
+        'exists': True,
+        'is_dir': True,
+        'permissions': {os.R_OK, os.W_OK, os.X_OK}
+    },
+    str(WRX_DIR_WRX_FILE): {
+        'exists': True,
+        'is_dir': False,
+        'permissions': {os.R_OK, os.W_OK, os.X_OK}
+    },
+    str(WRX_DIR_ROOT_FILE): {
+        'exists': True,
+        'is_dir': False,
+        'permissions': {os.X_OK}  # lacks read/write
+    },
+    str(WRX_DIR_RX_FILE): {
+        'exists': True,
+        'is_dir': False,
+        'permissions': {os.R_OK, os.X_OK}  # lacks write
+    },
+    str(WRX_DIR_RX_SUBDIR): {
+        'exists': True,
+        'is_dir': True,
+        'permissions': {os.R_OK, os.X_OK}  # lacks write
+    },
+    str(WRX_DIR_RX_SUBDIR_R_FILE): {
+        'exists': True,
+        'is_dir': False,
+        'permissions': {os.R_OK}  # lacks write/execute
+    },
+    str(WR_DIR): {
+        'exists': True,
+        'is_dir': True,
+        'permissions': {os.R_OK, os.W_OK}  # lacks execute (traversal error)
+    },
+    str(WR_DIR_WRX_FILE): {
+        'exists': True,
+        'is_dir': False,
+        'permissions': {os.R_OK, os.W_OK, os.X_OK}
+    },
+}
+
+def check_ancestor_traversal(path: Path):
+    """Walk up the parent directories and raise PermissionError if any parent lacks X_OK."""
+    current = path.parent
+    while current != current.parent:
+        current_str = str(current)
+        if current_str in MOCK_FS:
+            if MOCK_FS[current_str].get('exists', False) and os.X_OK not in MOCK_FS[current_str].get('permissions', set()):
+                raise PermissionError("Permission denied")
+        current = current.parent
+
+def mock_exists(self):
+    check_ancestor_traversal(self)
+    path_str = str(self)
+    if path_str in MOCK_FS:
+        return MOCK_FS[path_str].get('exists', False)
+    return False
+
+def mock_is_dir(self):
+    check_ancestor_traversal(self)
+    path_str = str(self)
+    if path_str in MOCK_FS:
+        return MOCK_FS[path_str].get('is_dir', False)
+    return False
+
+def mock_is_file(self):
+    check_ancestor_traversal(self)
+    path_str = str(self)
+    if path_str in MOCK_FS:
+        return not MOCK_FS[path_str].get('is_dir', False)
+    return False
+
+def mock_access(path, mode):
+    p = Path(path)
+    check_ancestor_traversal(p)
+    path_str = str(p)
+    if path_str in MOCK_FS:
+        return mode in MOCK_FS[path_str].get('permissions', set())
+    return False
+
+@pytest.fixture(autouse=True)
+def mock_fs_fixture(monkeypatch):
+    monkeypatch.setattr(Path, "exists", mock_exists)
+    monkeypatch.setattr(Path, "is_dir", mock_is_dir)
+    monkeypatch.setattr(Path, "is_file", mock_is_file)
+    monkeypatch.setattr(os, "access", mock_access)
 
 
 class TestPathOk:

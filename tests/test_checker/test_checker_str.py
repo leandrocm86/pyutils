@@ -100,3 +100,15 @@ def test_checker_str_custom_invalid():
     # Test with an invalid custom function
     with pytest.raises(ck.InvalidContractError):
         ck.valstr("hello", custom=lambda s: s == "world")
+
+
+def test_valstr_empty_string_upper():
+    # This should raise InvalidContractError (or handle empty strings gracefully)
+    with pytest.raises(ck.InvalidContractError):
+        ck.valstr("", upper=True)
+
+
+def test_valstr_empty_string_lower():
+    # This should raise InvalidContractError (or handle empty strings gracefully)
+    with pytest.raises(ck.InvalidContractError):
+        ck.valstr("", lower=True)

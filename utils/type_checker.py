@@ -136,8 +136,8 @@ def __check_generic_args(value: Any, origin: type, args: tuple[Any, ...], max_ch
         if len(args) == 2 and args[1] is ...:
             # tuple[int, ...] - homogeneous tuple of any length
             var_element_type = args[0]
-            # Check up to first 100 elements
-            var_items = list(value)[:100]
+            # Check up to max_checks elements
+            var_items = list(value)[:max_checks]
             for i, item in enumerate(var_items):
                 try:
                     check_type(item, var_element_type, max_checks=max_checks)
@@ -154,17 +154,27 @@ def __check_generic_args(value: Any, origin: type, args: tuple[Any, ...], max_ch
                     raise TypeError(f"Element at index {i}: {e}")
 
     elif origin in (dict, Map):
-        # For dictionaries, check key and value types
-        if len(args) == 2:
-            key_type, value_type = args
+        if max_checks:
             var_items = list(value.items())[:max_checks]
-            for key, val in var_items:
+        else:
+            var_items = list(value.items())
+
+        # For dictionaries, check key and value types
+        keytype = valtype = None
+        if len(args) == 2:
+            keytype, valtype = args
+
+        if keytype:
+            for key, _ in var_items:
                 try:
-                    check_type(key, key_type, max_checks=max_checks)
+                    check_type(key, keytype, max_checks=max_checks)
                 except TypeError as e:
                     raise TypeError(f"Dictionary key {repr(key)}: {e}")
+
+        if valtype:
+            for key, val in var_items:
                 try:
-                    check_type(val, value_type, max_checks=max_checks)
+                    check_type(val, valtype, max_checks=max_checks)
                 except TypeError as e:
                     raise TypeError(f"Dictionary value for key {repr(key)}: {e}")
 
@@ -223,10 +233,20 @@ def valstr(value: str,
         _error(f'Invalid str: expected maximum length {maxlen}, got {len(value)}.')
 
     if upper and not value.isupper():
-        _error(f'Invalid str: expected upper, got "{next(c for c in value if not c.isupper())}" in {pstr(value, maxlen=50)}.')
+        offending = next((c for c in value if not c.isupper()), None)
+        if offending is not None:
+            _error(f'Invalid str: expected upper, got "{offending}" in {pstr(value, maxlen=50)}.')
+        else:
+            # This case should ideally not be reached if value.isupper() is False, but included for safety.
+            _error(f'Invalid str: expected upper, but no non-uppercase character found in {pstr(value, maxlen=50)}.')
 
     if lower and not value.islower():
-        _error(f'Invalid str: expected lower, got "{next(c for c in value if not c.islower())}" in "{pstr(value, maxlen=50)}".')
+        offending = next((c for c in value if not c.islower()), None)
+        if offending is not None:
+            _error(f'Invalid str: expected lower, got "{offending}" in "{pstr(value, maxlen=50)}".')
+        else:
+            # This case should ideally not be reached if value.islower() is False, but included for safety.
+            _error(f'Invalid str: expected lower, but no non-lowercase character found in "{pstr(value, maxlen=50)}".')
 
     if regex:
         if isinstance(regex, str):
@@ -319,7 +339,7 @@ def __collectionok(value: C,
     if maxlen is not None and len(value) > maxlen:
         _error(f'Invalid sequence: expected maximum length {maxlen}, got {len(value)}.')
 
-    if minelem and value:
+    if minelem is not None and value:
         if not hasattr(minelem, '__lt__'):
             _error(f'Impossible validation: the minimum element\'s type is not comparable: {type(minelem)}.')
         else:
@@ -329,15 +349,16 @@ def __collectionok(value: C,
             elif minv < minelem:  # type: ignore
                 _error(f'Invalid sequence: expected minimum element {pstr(minelem)}, got {pstr(minv)}.')  # type: ignore
 
-    if maxelem and value:
-        if not hasattr(maxelem, '__lt__'):
-            _error(f'Impossible validation: the maximum element\'s type is not comparable: {type(maxelem)}.')
-        else:
-            maxv = max(value)
-            if not isinstance(maxv, type(maxelem)):
-                _error(f'Impossible validation of maximum element: expected maximum element of type {type(maxelem)}, got {type(maxv)}.')
-            elif maxv > maxelem:  # type: ignore
-                _error(f'Invalid sequence: expected maximum element {pstr(maxelem)}, got {pstr(maxv)}.')  # type: ignore
+    if maxelem is not None and value:
+        if maxelem is not None and value:
+            if not hasattr(maxelem, '__lt__'):
+                _error(f'Impossible validation: the maximum element\'s type is not comparable: {type(maxelem)}.')
+            else:
+                maxv = max(value)
+                if not isinstance(maxv, type(maxelem)):
+                    _error(f'Impossible validation of maximum element: expected maximum element of type {type(maxelem)}, got {type(maxv)}.')
+                elif maxv > maxelem:  # type: ignore
+                    _error(f'Invalid sequence: expected maximum element {pstr(maxelem)}, got {pstr(maxv)}.')  # type: ignore
 
     __handle_custom_validation(value, custom)
 
@@ -350,13 +371,14 @@ def valseq(value: Seq[T],
            maxlen: Optional[int] = None,
            minelem: Optional[T] = None,
            maxelem: Optional[T] = None,
-           custom: Optional[Callable[[Seq[T]], bool]] = None) -> Seq[T]:
+           custom: Optional[Callable[[Seq[T]], bool]] = None,
+           max_checks: int = 100) -> Seq[T]:  # Added max_checks here
     """ Runtime validation for sequences (lists and tuples).
     Checks type and optionally given constraints, possibly raising
     TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
     """
 
-    check_type(value, Seq[elemtype])
+    check_type(value, Seq[elemtype], max_checks=max_checks)
 
     __collectionok(value, length, minlen, maxlen, minelem, maxelem, custom)
 
@@ -371,13 +393,14 @@ def valset(value: Set[T],
            maxlen: Optional[int] = None,
            minelem: Optional[T] = None,
            maxelem: Optional[T] = None,
-           custom: Optional[Callable[[Set[T]], bool]] = None) -> Set[T]:
+           custom: Optional[Callable[[Set[T]], bool]] = None,
+           max_checks: int = 100) -> Set[T]:
     """ Runtime validation for sets.
     Checks type and optionally given constraints, possibly raising
     TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
     """
 
-    check_type(value, Set[elemtype])
+    check_type(value, Set[elemtype], max_checks=max_checks)
 
     __collectionok(value, length, minlen, maxlen, minelem, maxelem, custom)
 
@@ -393,13 +416,14 @@ def valmap(value: Map[K, V],
            maxlen: Optional[int] = None,
            minkey: Optional[K] = None,
            maxkey: Optional[K] = None,
-           custom: Optional[Callable[[Map[K, V]], bool]] = None) -> Map[K, V]:
+           custom: Optional[Callable[[Map[K, V]], bool]] = None,
+           max_checks: int = 100) -> Map[K, V]:  # Added max_checks here
     """ Runtime validation for maps (dictionaries).
     Checks type and optionally given constraints, possibly raising
     TypeError or InvalidContractError, respectively. If no error is raised, the original value is returned.
     """
 
-    check_type(value, Map[keytype, valtype])
+    check_type(value, Map[keytype, valtype], max_checks=max_checks)
 
     if length is not None and len(value) != length:
         _error(f'Invalid map: expected length {length}, got {len(value)}.')
@@ -410,7 +434,7 @@ def valmap(value: Map[K, V],
     if maxlen is not None and len(value) > maxlen:
         _error(f'Invalid map: expected maximum length {maxlen}, got {len(value)}.')
 
-    if minkey and value:
+    if minkey is not None and value:
         if not hasattr(minkey, '__lt__'):
             _error(f'Impossible validation: the minimum key\'s type is not comparable: {type(minkey)}.')
         elif not isinstance(minkey, keytype):
@@ -418,11 +442,11 @@ def valmap(value: Map[K, V],
         elif (minv := min(value)) < minkey:  # type: ignore
             _error(f'Invalid map: expected minimum key {pstr(minkey)}, got {pstr(minv)}.')  # type: ignore
 
-    if maxkey and value:
+    if maxkey is not None and value:
         if not hasattr(maxkey, '__lt__'):
             _error(f'Impossible validation: the maximum key\'s type is not comparable: {type(maxkey)}.')
         elif not isinstance(maxkey, keytype):
-            _error(f'Impossible validation of maximum key: expected maximum key of type {keytype}, got {type(maxkey)}.')
+            _error(f'Impossible validation of maximum key: expected minimum key of type {keytype}, got {type(maxkey)}.')
         elif (maxv := max(value)) > maxkey:  # type: ignore
             _error(f'Invalid map: expected maximum key {pstr(maxkey)}, got {pstr(maxv)}.')  # type: ignore
 

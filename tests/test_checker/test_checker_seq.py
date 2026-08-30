@@ -84,3 +84,24 @@ def test_iscoll_custom():
 
     with pytest.raises(ck.InvalidContractError):
         ck.valseq([0, 1, 2], int, custom=lambda s: s[1] / s[0] > 1)
+
+
+def test_iscoll_minelem_with_zero():
+    # This should fail, but currently might be bypassed if minelem=0
+    # because 'if minelem:' evaluates to False.
+    with pytest.raises(ck.InvalidContractError):
+        ck.valseq([0, -1, -2], int, minelem=0)
+
+
+def test_iscoll_maxelem_with_zero():
+    # This should fail, but might be bypassed if maxelem=0
+    # because 'if maxelem:' evaluates to False.
+    with pytest.raises(ck.InvalidContractError):
+        ck.valseq([0, 1, 2], int, maxelem=0)
+
+
+def test_tuple_max_checks():
+    # This checks that we honor max_checks in homogeneous tuples.
+    # Must fail validation for a tuple if we provide an invalid element at index 1.
+    val = (1, 'invalid', 3, 4)
+    ck.valseq(val, int, max_checks=1)

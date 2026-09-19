@@ -4,9 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyutils"
-version = "0.2.0"
+version = "0.3.0"
 description = "Personal utility python modules"
-requires-python = ">=3.11"
+requires-python = ">=3.15"
 
 [project.optional-dependencies]
 test = [
@@ -15,3 +15,4 @@ test = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["utils", "std"]
+include = ["utils/py.typed", "std/py.typed"]

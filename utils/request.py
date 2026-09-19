@@ -167,8 +167,8 @@ def get(
         RequestError: If the request fails due to network or other issues.
 
     Example:
-        >>> response = get('https://api.example.com/data')
-        >>> data = response.read()
+        response = get('https://api.example.com/data')
+        data = response.read()
     """
     return _make_request(url, 'GET', headers=headers, timeout=timeout)
 
@@ -196,10 +196,10 @@ def post(
         RequestError: If the request fails due to network or other issues.
 
     Example:
-        >>> response = post('https://api.example.com/items',
+        response = post('https://api.example.com/items',
         ...                 data={'key': 'value'},
         ...                 headers={'Content-Type': 'application/json'})
-        >>> result = response.read()
+        result = response.read()
     """
     return _make_request(url, 'POST', data=data, headers=headers, timeout=timeout)
 
@@ -227,9 +227,9 @@ def put(
         RequestError: If the request fails due to network or other issues.
 
     Example:
-        >>> response = put('https://api.example.com/items/123',
+        response = put('https://api.example.com/items/123',
         ...                data={'updated': 'value'})
-        >>> result = response.read()
+        result = response.read()
     """
     return _make_request(url, 'PUT', data=data, headers=headers, timeout=timeout)
 
@@ -255,7 +255,7 @@ def delete(
         RequestError: If the request fails due to network or other issues.
 
     Example:
-        >>> response = delete('https://api.example.com/items/123')
-        >>> status = response.status
+        response = delete('https://api.example.com/items/123')
+        status = response.status
     """
     return _make_request(url, 'DELETE', headers=headers, timeout=timeout)

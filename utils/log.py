@@ -217,7 +217,7 @@ else:
         MAX_FRAMES: int = ExceptionsConfig.max_frames
 
         LOG.error(f"UNHANDLED EXCEPTION: {exc_type.__name__}: {exc_value}")
-        print("=" * 64)
+        print("=" * 62)
 
         # Print the normal traceback first
         if not ExceptionsConfig.suppress_default_stacktrace:

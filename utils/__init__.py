@@ -5,4 +5,4 @@ from .type_checker import valbool as valbool, valint as valint, valfloat as valf
 from .moeda import Moeda  #type:ignore #noqa
 from .mut import Mut  #type:ignore #noqa
 from .pstr import pstr, ppstr  #type:ignore #noqa
-from .system import install_external_libs  #type:ignore #noqa
+from .system import install_external_libs as install_external_libs, package_resource as package_resource  #type:ignore #noqa

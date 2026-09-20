@@ -1,4 +1,8 @@
+import importlib.util
+import os
 import subprocess
+import sys
+from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
 
@@ -7,6 +11,92 @@ from typing import Any, Callable, Iterable, Optional
 # - check=True: lança exceção se o comando falhar (exit code != 0)
 # - capture_output=True: retorna o output do comando e confere se está vazio quando esperado (exec)
 # - timeout=10: tempo máximo de execução, evitando travamentos
+
+
+def package_resource(package: str, *relative: str, env_var: Optional[str] = None) -> Path:
+    """
+    Localiza um arquivo ou diretorio de dados de um pacote, independente do modo de execucao.
+
+    Objetivo: permitir que o mesmo codigo encontre seus recursos (templates, estaticos,
+    etc.) rodando via fonte (uv run / pytest), via pacote instalado (pip/wheel) ou via
+    binario congelado (PyInstaller, com os dados incluidos via --add-data ou --collect-data),
+    sem espalhar detalhes como `_MEIPASS` pelo codigo de cada projeto.
+
+    Ordem de busca:
+        1. Variavel de ambiente `env_var` (quando informada e definida): override explicito.
+        2. Bundle congelado (`sys.frozen` + `sys._MEIPASS`): `<base>/<package>/<rel>`
+           (layout de --collect-data) e `<base>/<rel>` (layout de --add-data).
+        3. Diretorio do pacote (fonte ou instalado, via importlib) + `<rel>`.
+
+    Params:
+        package: nome importavel do pacote (ex.: "croche").
+        relative: caminho relativo dentro do pacote (ex.: "templates" ou "static", "style.css").
+        env_var: nome opcional de variavel de ambiente com override do caminho.
+
+    Returns:
+        O Path existente do recurso.
+
+    Raises:
+        ValueError: se `package` for vazio.
+        FileNotFoundError: se o recurso nao existir em nenhum local sondado
+            (a mensagem lista todos os caminhos tentados).
+
+    >>> import tempfile
+    >>> var_tmp = Path(tempfile.mkdtemp())
+    >>> (var_tmp / "fakepkg").mkdir()
+    >>> _ = (var_tmp / "fakepkg" / "__init__.py").write_text("")
+    >>> _ = (var_tmp / "fakepkg" / "dados.txt").write_text("oi")
+    >>> import sys as _sys
+    >>> _sys.path.insert(0, str(var_tmp))
+    >>> package_resource("fakepkg", "dados.txt").read_text()
+    'oi'
+    >>> import os as _os
+    >>> _os.environ["PYUTILS_TESTE_DIR"] = str(var_tmp / "fakepkg")
+    >>> package_resource("outro", "x", env_var="PYUTILS_TESTE_DIR").name
+    'fakepkg'
+    >>> del _os.environ["PYUTILS_TESTE_DIR"]
+    >>> package_resource("fakepkg", "nao-existe.txt")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    FileNotFoundError: Recurso 'nao-existe.txt' do pacote 'fakepkg' nao encontrado...
+    >>> _sys.path.remove(str(var_tmp))
+    """
+    if not package or not package.strip():
+        raise ValueError("Nome do pacote nao pode ser vazio")
+    var_rel = Path(*relative)
+    if env_var:
+        var_forced = os.environ.get(env_var, "").strip()
+        if var_forced:
+            var_path = Path(var_forced).expanduser()
+            if not var_path.exists():
+                raise FileNotFoundError(
+                    "Override %s=%s nao existe" % (env_var, var_forced))
+            return var_path
+    var_tried: list[str] = []
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        var_base = Path(sys._MEIPASS)  # type: ignore[attr-defined]
+        for var_cand in (var_base / package / var_rel, var_base / var_rel):
+            var_tried.append(str(var_cand))
+            if var_cand.exists():
+                return var_cand
+    var_anchor: Optional[Path] = None
+    try:
+        var_spec = importlib.util.find_spec(package)
+    except (ImportError, ValueError):
+        var_spec = None
+    if var_spec is not None:
+        if var_spec.submodule_search_locations:
+            var_anchor = Path(var_spec.submodule_search_locations[0])
+        elif var_spec.origin:
+            var_anchor = Path(var_spec.origin).parent
+    if var_anchor is not None:
+        var_cand = var_anchor / var_rel
+        var_tried.append(str(var_cand))
+        if var_cand.exists():
+            return var_cand
+    raise FileNotFoundError(
+        "Recurso '%s' do pacote '%s' nao encontrado. Caminhos sondados: %s"
+        % (str(var_rel), package, var_tried))
 
 
 def __run(cmd: str | Iterable[str],

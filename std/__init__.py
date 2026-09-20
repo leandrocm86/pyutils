@@ -3,197 +3,203 @@
 # Visa facilitar (reduzindo) os imports em cada script.
 #############################################################
 
-import abc as abc
-import argparse as argparse
-import array as array
-import ast as ast
-import asyncio as asyncio
-import atexit as atexit
-import base64 as base64
-import bdb as bdb
-import binascii as binascii
-import bisect as bisect
-import builtins as builtins
-import bz2 as bz2
-import calendar as calendar
-import cmath as cmath
-import cmd as cmd
-import code as code
-import codecs as codecs
-import codeop as codeop
-import collections as collections
-import colorsys as colorsys
-import compileall as compileall
-import concurrent as concurrent
-import configparser as configparser
-import contextlib as contextlib
-import contextvars as contextvars
-import copy as copy
-import copyreg as copyreg
-import cProfile as cProfile
-import csv as csv
-import ctypes as ctypes
-import curses as curses
-import dataclasses as dataclasses
-import dbm as dbm
-import decimal as decimal
-import difflib as difflib
-import dis as dis
-import doctest as doctest
-import email as email
-import encodings as encodings
-import enum as enum
-import errno as errno
-import faulthandler as faulthandler
-import fcntl as fcntl
-import filecmp as filecmp
-import fileinput as fileinput
-import fnmatch as fnmatch
-import fractions as fractions
-import ftplib as ftplib
-import functools as functools
-import gc as gc
-import genericpath as genericpath
-import getopt as getopt
-import getpass as getpass
-import gettext as gettext
-import glob as glob
-import graphlib as graphlib
-import grp as grp
-import gzip as gzip
-import hashlib as hashlib
-import heapq as heapq
-import hmac as hmac
-import html as html
-import http as http
-import imaplib as imaplib
-import importlib as importlib
-import inspect as inspect
-import io as io
-import ipaddress as ipaddress
-import itertools as itertools
-import json as json
-import keyword as keyword
-import linecache as linecache
-import locale as locale
-import logging as logging
-import lzma as lzma
-import mailbox as mailbox
-import marshal as marshal
-import math as math
-import mimetypes as mimetypes
-import mmap as mmap
-import modulefinder as modulefinder
-import multiprocessing as multiprocessing
-import netrc as netrc
-import ntpath as ntpath
-import nturl2path as nturl2path
-import numbers as numbers
-import opcode as opcode
-import operator as operator
-import optparse as optparse
-import os as os
-import pathlib as pathlib
-import pdb as pdb
-import pickle as pickle
-import pickletools as pickletools
-import pkgutil as pkgutil
-import platform as platform
-import plistlib as plistlib
-import poplib as poplib
-import posix as posix
-import posixpath as posixpath
-import pprint as pprint
-import profile as profile
-import pstats as pstats
-import pty as pty
-import pwd as pwd
-import py_compile as py_compile
-import pyclbr as pyclbr
-import pydoc as pydoc
-import pydoc_data as pydoc_data
-import pyexpat as pyexpat
-import queue as queue
-import quopri as quopri
-import random as random
-import re as re
-import readline as readline
-import reprlib as reprlib
-import resource as resource
-import rlcompleter as rlcompleter
-import runpy as runpy
-import sched as sched
-import secrets as secrets
-import select as select
-import selectors as selectors
-import shelve as shelve
-import shlex as shlex
-import shutil as shutil
-import signal as signal
-import site as site
-import smtplib as smtplib
-import socket as socket
-import socketserver as socketserver
-import sqlite3 as sqlite3
-import ssl as ssl
-import stat as stat
-import statistics as statistics
-import string as string
-import stringprep as stringprep
-import struct as struct
-import subprocess as subprocess
-import symtable as symtable
-import sys as sys
-import sysconfig as sysconfig
-import syslog as syslog
-import tabnanny as tabnanny
-import tarfile as tarfile
-import tempfile as tempfile
-import termios as termios
-import textwrap as textwrap
-import threading as threading
-import time as time
-import timeit as timeit
+lazy import abc as abc
+lazy import argparse as argparse
+lazy import array as array
+lazy import ast as ast
+lazy import asyncio as asyncio
+lazy import atexit as atexit
+lazy import base64 as base64
+lazy import bdb as bdb
+lazy import binascii as binascii
+lazy import bisect as bisect
+lazy import builtins as builtins
+lazy import bz2 as bz2
+lazy import calendar as calendar
+lazy import cmath as cmath
+lazy import cmd as cmd
+lazy import code as code
+lazy import codecs as codecs
+lazy import codeop as codeop
+lazy import collections as collections
+lazy import colorsys as colorsys
+lazy import compileall as compileall
+lazy import concurrent as concurrent
+lazy import configparser as configparser
+lazy import contextlib as contextlib
+lazy import contextvars as contextvars
+lazy import copy as copy
+lazy import copyreg as copyreg
+lazy import cProfile as cProfile
+lazy import csv as csv
+lazy import ctypes as ctypes
+lazy import curses as curses
+lazy import dataclasses as dataclasses
+lazy import dbm as dbm
+lazy import decimal as decimal
+lazy import difflib as difflib
+lazy import dis as dis
+lazy import doctest as doctest
+lazy import email as email
+lazy import encodings as encodings
+lazy import enum as enum
+lazy import errno as errno
+lazy import faulthandler as faulthandler
+lazy import fcntl as fcntl
+lazy import filecmp as filecmp
+lazy import fileinput as fileinput
+lazy import fnmatch as fnmatch
+lazy import fractions as fractions
+lazy import ftplib as ftplib
+lazy import functools as functools
+lazy import gc as gc
+lazy import genericpath as genericpath
+lazy import getopt as getopt
+lazy import getpass as getpass
+lazy import gettext as gettext
+lazy import glob as glob
+lazy import graphlib as graphlib
+lazy import grp as grp
+lazy import gzip as gzip
+lazy import hashlib as hashlib
+lazy import heapq as heapq
+lazy import hmac as hmac
+lazy import html as html
+lazy import http as http
+lazy import imaplib as imaplib
+lazy import importlib as importlib
+lazy import inspect as inspect
+lazy import io as io
+lazy import ipaddress as ipaddress
+lazy import itertools as itertools
+lazy import json as json
+lazy import keyword as keyword
+lazy import linecache as linecache
+lazy import locale as locale
+lazy import logging as logging
+lazy import lzma as lzma
+lazy import mailbox as mailbox
+lazy import marshal as marshal
+lazy import math as math
+lazy import mimetypes as mimetypes
+lazy import mmap as mmap
+lazy import modulefinder as modulefinder
+lazy import multiprocessing as multiprocessing
+lazy import netrc as netrc
+lazy import ntpath as ntpath
+
+# DEPRECATED in python 3.19
+# lazy import nturl2path as nturl2path
+
+lazy import numbers as numbers
+lazy import opcode as opcode
+lazy import operator as operator
+lazy import optparse as optparse
+lazy import os as os
+lazy import pathlib as pathlib
+lazy import pdb as pdb
+lazy import pickle as pickle
+lazy import pickletools as pickletools
+lazy import pkgutil as pkgutil
+lazy import platform as platform
+lazy import plistlib as plistlib
+lazy import poplib as poplib
+lazy import posix as posix
+lazy import posixpath as posixpath
+lazy import pprint as pprint
+
+# DEPRECATED in python 3.17
+# lazy import profile as profile
+
+lazy import pstats as pstats
+lazy import pty as pty
+lazy import pwd as pwd
+lazy import py_compile as py_compile
+lazy import pyclbr as pyclbr
+lazy import pydoc as pydoc
+lazy import pydoc_data as pydoc_data
+lazy import pyexpat as pyexpat
+lazy import queue as queue
+lazy import quopri as quopri
+lazy import random as random
+lazy import re as re
+lazy import readline as readline
+lazy import reprlib as reprlib
+lazy import resource as resource
+lazy import rlcompleter as rlcompleter
+lazy import runpy as runpy
+lazy import sched as sched
+lazy import secrets as secrets
+lazy import select as select
+lazy import selectors as selectors
+lazy import shelve as shelve
+lazy import shlex as shlex
+lazy import shutil as shutil
+lazy import signal as signal
+lazy import site as site
+lazy import smtplib as smtplib
+lazy import socket as socket
+lazy import socketserver as socketserver
+lazy import sqlite3 as sqlite3
+lazy import ssl as ssl
+lazy import stat as stat
+lazy import statistics as statistics
+lazy import string as string
+lazy import stringprep as stringprep
+lazy import struct as struct
+lazy import subprocess as subprocess
+lazy import symtable as symtable
+lazy import sys as sys
+lazy import sysconfig as sysconfig
+lazy import syslog as syslog
+lazy import tabnanny as tabnanny
+lazy import tarfile as tarfile
+lazy import tempfile as tempfile
+lazy import termios as termios
+lazy import textwrap as textwrap
+lazy import threading as threading
+lazy import time as time
+lazy import timeit as timeit
 
 # tkinter is not available in all python installations
 # import tkinter
-import token as token
-import tokenize as tokenize
-import trace as trace
-import traceback as traceback
-import tracemalloc as tracemalloc
-import tty as tty
-import types as types
-import typing as typing
-import unicodedata as unicodedata
-import unittest as unittest
-import urllib as urllib
-import uuid as uuid
-import venv as venv
-import warnings as warnings
-import wave as wave
-import weakref as weakref
-import webbrowser as webbrowser
-import wsgiref as wsgiref
-import xml as xml
-import xmlrpc as xmlrpc
-import zipapp as zipapp
-import zipfile as zipfile
-import zipimport as zipimport
-import zlib as zlib
-import zoneinfo as zoneinfo
+lazy import token as token
+lazy import tokenize as tokenize
+lazy import trace as trace
+lazy import traceback as traceback
+lazy import tracemalloc as tracemalloc
+lazy import tty as tty
+lazy import types as types
+lazy import typing as typing
+lazy import unicodedata as unicodedata
+lazy import unittest as unittest
+lazy import urllib as urllib
+lazy import uuid as uuid
+lazy import venv as venv
+lazy import warnings as warnings
+lazy import wave as wave
+lazy import weakref as weakref
+lazy import webbrowser as webbrowser
+lazy import wsgiref as wsgiref
+lazy import xml as xml
+lazy import xmlrpc as xmlrpc
+lazy import zipapp as zipapp
+lazy import zipfile as zipfile
+lazy import zipimport as zipimport
+lazy import zlib as zlib
+lazy import zoneinfo as zoneinfo
 
-import tomllib as tomllib
+lazy import tomllib as tomllib
 
-from abc import ABC as ABC, abstractmethod as abstractmethod
-from dataclasses import dataclass as dataclass
-from datetime import date as date, datetime as datetime, timedelta as timedelta
-from decimal import Decimal as Decimal
-from enum import Enum as Enum
-from pathlib import Path as Path
-from statistics import mean as mean, fmean as fmean
-from typing import Any as Any, Callable as Callable, cast as cast, Collection as Collection, final as final, Final as Final, FrozenSet as FrozenSet, Iterable as Iterable, Mapping as Mapping, Optional as Optional, override as override, Self as Self, Sequence as Sequence, Set as Set, Type as Type, TypeVar as TypeVar
-from typing import Sequence as Seq
-from urllib import request as request
+lazy from abc import ABC as ABC, abstractmethod as abstractmethod
+lazy from dataclasses import dataclass as dataclass
+lazy from datetime import date as date, datetime as datetime, timedelta as timedelta
+lazy from decimal import Decimal as Decimal
+lazy from enum import Enum as Enum
+lazy from pathlib import Path as Path
+lazy from statistics import mean as mean, fmean as fmean
+lazy from typing import Any as Any, Callable as Callable, cast as cast, Collection as Collection, final as final, Final as Final, FrozenSet as FrozenSet, Iterable as Iterable, Mapping as Mapping, Optional as Optional, override as override, Self as Self, Sequence as Sequence, Set as Set, Type as Type, TypeVar as TypeVar
+lazy from typing import Sequence as Seq
+lazy from urllib import request as request
 
 __all__ = ["Seq"]

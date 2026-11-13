@@ -1,16 +1,19 @@
-from typing import Any, Optional, Mapping, Sequence, Iterable, Set, Generator
+from collections.abc import Iterable, Generator, Mapping, Sequence
+from typing import Any, Final
 import sys
+
+ATTY: Final[bool] = sys.stdout.isatty()
 
 
 def __iter_wrappers(iterable: Iterable[Any]) -> tuple[str, str]:
-    if isinstance(iterable, (Mapping, Set)):
+    if isinstance(iterable, (Mapping, set)):
         return '{', '}'
     elif isinstance(iterable, (tuple, Generator)):
         return '(', ')'
     elif isinstance(iterable, Sequence):
         return '[', ']'
     else:
-        raise Exception(f"Unexpected iterable type: {type(iterable)}")
+        raise TypeError(f"Unexpected iterable type: {type(iterable)}")
 
 
 def __color(depth: int) -> str:
@@ -26,7 +29,7 @@ __COLOR_END: str = '\033[0m'
 
 
 def ppstr(obj: object, maxlen: int = 50, maxdepth: int = 3,
-          colored: bool = sys.stdout.isatty()) -> None:
+          colored: bool = ATTY) -> None:
     """Prints a pretty string representation of an object.
     For details about the parameters, see pstr()."""
 
@@ -34,21 +37,25 @@ def ppstr(obj: object, maxlen: int = 50, maxdepth: int = 3,
 
 
 def pstr(obj: object, maxlen: int = 50, maxdepth: int = 3,
-         colored: bool = sys.stdout.isatty()) -> str:
+         colored: bool = ATTY) -> str:
     """Creates a pretty string representation of an object.
     It respects the given constraints (maxlen and maxdepth) to truncate the output when needed.
     Args:
-        obj (object): The object to be represented.
-        maxlen (int, optional): The maximum number of (inner) items to be included in the output, for each object. Defaults to 50.
-        maxdepth (int, optional): The maximum depth of nested objects to be included in the output. Defaults to 3.
-        colored (bool, optional): Whether to use colors in the output. Defaults to True if stdout is a terminal.
+        obj (object):
+            The object to be represented.
+        maxlen (int, optional):
+            The maximum number of (inner) items to be included in the output, for each object. Defaults to 50.
+        maxdepth (int, optional):
+            The maximum depth of nested objects to be included in the output. Defaults to 3.
+        colored (bool, optional):
+            Whether to use colors in the output. Defaults to True if stdout is a terminal.
     Returns:
         str: The pretty string representation of the object.
     """
 
     HALF_INDEX = maxlen // 2
 
-    def primitive_str(val: Any) -> Optional[Any]:
+    def primitive_str(val: Any) -> str | None:
         if val is None or isinstance(val, (int, float, bool)):
             return str(val)
         elif isinstance(val, str):
@@ -57,26 +64,26 @@ def pstr(obj: object, maxlen: int = 50, maxdepth: int = 3,
         return None
 
     def concat_inners(inners: Sequence[Any], dict_tuples: bool,
-                      depth: int, color: Optional[str]) -> list[str]:
+                      depth: int, color: str | None) -> list[str]:
         printed_inners: list[str] = []
         for i in inners:
             if (primstr := primitive_str(i)):
-                istr = primstr
+                var_istr = primstr
             elif dict_tuples:
-                assert isinstance(i, tuple) and len(i) == 2  # type: ignore
-                key = primitive_str(i[0])
-                if not key:
-                    key = __COLOR_END + __str(i[0], depth + 1) + color if color else __str(i[0], depth + 1)
-                value = primitive_str(i[1])
-                if not value:
-                    value = __COLOR_END + __str(i[1], depth + 1) + color if color else __str(i[1], depth + 1)
-                istr = key + ': ' + value
+                assert isinstance(i, tuple) and len(i) == 2
+                var_key = primitive_str(i[0])
+                if not var_key:
+                    var_key = __COLOR_END + __str(i[0], depth + 1) + color if color else __str(i[0], depth + 1)
+                var_value = primitive_str(i[1])
+                if not var_value:
+                    var_value = __COLOR_END + __str(i[1], depth + 1) + color if color else __str(i[1], depth + 1)
+                var_istr = var_key + ': ' + var_value
             else:
-                istr = __str(i, depth + 1)
+                var_istr = __str(i, depth + 1)
                 if color:
-                    istr = __COLOR_END + istr + color
+                    var_istr = __COLOR_END + var_istr + color
 
-            printed_inners.append(istr)
+            printed_inners.append(var_istr)
         return printed_inners
 
     def __str(item: Any, depth: int) -> str:
@@ -86,34 +93,35 @@ def pstr(obj: object, maxlen: int = 50, maxdepth: int = 3,
             if not isinstance(item, Iterable):
                 # Non-primitive and non-collection objects may have custom __str__.
                 # If so, we use it and format it as a primitive string.
-                if type(item).__str__ is not object.__str__ and (primstr := primitive_str(str(item))):
+                if (type(item).__str__ is not object.__str__  # type: ignore[comparison-overlap]
+                        and (primstr := primitive_str(str(item)))):
                     return primstr
                 elif hasattr(item, '__dict__'):
-                    its = item.__dict__
+                    var_its = item.__dict__
                 else:
                     return str(item)
             else:
-                its = item  # type: ignore
+                var_its = item
 
             color = __color(depth) if colored else None
-            dict_tuples = isinstance(its, Mapping)
-            inners: Sequence[Any] = its if isinstance(its, Sequence) \
-                else list(its.items() if isinstance(its, Mapping) else its)  # type: ignore
+            dict_tuples = isinstance(var_its, Mapping)
+            inners: Sequence[Any] = var_its if isinstance(var_its, Sequence) \
+                else list(var_its.items() if isinstance(var_its, Mapping) else var_its)
             if len(inners) > maxlen + 1:
                 first_half = ', '.join(concat_inners(inners[:HALF_INDEX], dict_tuples, depth, color))
                 second_half = ', '.join(concat_inners(inners[-HALF_INDEX:], dict_tuples, depth, color))
-                items_str = first_half + ', ... , ' + second_half
+                var_items_str = first_half + ', ... , ' + second_half
             else:
-                items_str = ', '.join(concat_inners(inners, dict_tuples, depth, color))
+                var_items_str = ', '.join(concat_inners(inners, dict_tuples, depth, color))
 
-            start, end = __iter_wrappers(its)  # type: ignore
-            items_str = start + items_str + end
+            start, end = __iter_wrappers(var_its)
+            var_items_str = start + var_items_str + end
             if len(inners) > maxlen + 1:
-                items_str += f'(len={len(inners)})'
+                var_items_str += f'(len={len(inners)})'
             if color:
-                return color + items_str + __COLOR_END
+                return color + var_items_str + __COLOR_END
             else:
-                return items_str
+                return var_items_str
         else:
             return f"{item.__class__.__name__}(...)"
 

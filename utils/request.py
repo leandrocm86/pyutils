@@ -8,10 +8,14 @@ while using only Python's standard library (urllib) under the hood.
 import urllib.request
 import urllib.error
 import urllib.parse
-from typing import Optional, Dict, Any, Union
+lazy import json
+from typing import Any, TypeVar
 from http.client import HTTPResponse
 
 from . import log
+
+
+T = TypeVar("T")
 
 
 class Response:
@@ -20,8 +24,8 @@ class Response:
     """
 
     def __init__(self, response: HTTPResponse):
-        self._response = response
-        self._content: Optional[bytes] = None
+        self._response: HTTPResponse = response
+        self._content: bytes | None = None
 
     @property
     def status_code(self) -> int:
@@ -48,19 +52,21 @@ class Response:
     def text(self) -> str:
         return self.content.decode(self.encoding, errors="replace")
 
-    def json(self):
-        import json
+    def json(self) -> Any:
         return json.loads(self.text)
 
 
 class HTTPError(Exception):
     """Exception raised for HTTP errors."""
 
-    def __init__(self, code: int, reason: str, response: Optional[HTTPResponse] = None):
+    def __init__(self, code: int, reason: str, response: Response | None = None):
+        super().__init__(code, reason, response)
         self.code = code
         self.reason = reason
         self.response = response
-        super().__init__(f"HTTP {code}: {reason}")
+
+    def __str__(self) -> str:
+        return f"HTTP {self.code}: {self.reason}"
 
 
 class RequestError(Exception):
@@ -71,7 +77,7 @@ class RequestError(Exception):
         super().__init__(f"Request failed: {reason}")
 
 
-def _prepare_data(data: Optional[Union[str, bytes, Dict[str, Any]]]) -> Optional[bytes]:
+def _prepare_data(data: str | bytes | dict[str, Any] | None) -> bytes | None:
     """
     Prepare data for the request body.
 
@@ -97,11 +103,11 @@ def _prepare_data(data: Optional[Union[str, bytes, Dict[str, Any]]]) -> Optional
 
 
 def _make_request(
-    url: str,
-    method: str,
-    data: Optional[Union[str, bytes, Dict[str, Any]]] = None,
-    headers: Optional[Dict[str, str]] = None,
-    timeout: Optional[float] = 10) -> HTTPResponse:
+        url: str,
+        method: str,
+        data: str | bytes | dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        timeout: float | None = 10) -> Response:
     """
     Internal function to make HTTP requests.
 
@@ -131,13 +137,11 @@ def _make_request(
         )
 
         log.debug('Requesting %s', url)
-        raw_response = urllib.request.urlopen(req, timeout=timeout)
+        raw_response = urllib.request.urlopen(req, timeout=timeout)  # nosec B310
         return Response(raw_response)
 
     except urllib.error.HTTPError as e:
-        # Mesmo erro HTTP possui body e headers — igual ao requests
-        response = Response(e)
-        raise HTTPError(e.code, e.reason, response) from e
+        raise HTTPError(e.code, e.reason, None) from e
 
     except urllib.error.URLError as e:
         raise RequestError(str(e.reason)) from e
@@ -146,11 +150,7 @@ def _make_request(
         raise RequestError(str(e)) from e
 
 
-def get(
-    url: str,
-    headers: Optional[Dict[str, str]] = None,
-    timeout: Optional[float] = 10
-) -> Response:
+def get(url: str, headers: dict[str, str] | None = None, timeout: float | None = 10) -> Response:
     """
     Perform a GET request.
 
@@ -175,9 +175,9 @@ def get(
 
 def post(
     url: str,
-    data: Optional[Union[str, bytes, Dict[str, Any]]] = None,
-    headers: Optional[Dict[str, str]] = None,
-    timeout: Optional[float] = 10
+    data: str | bytes | dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: float | None = 10
 ) -> Response:
     """
     Perform a POST request.
@@ -206,9 +206,9 @@ def post(
 
 def put(
     url: str,
-    data: Optional[Union[str, bytes, Dict[str, Any]]] = None,
-    headers: Optional[Dict[str, str]] = None,
-    timeout: Optional[float] = 10
+    data: str | bytes | dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: float | None = 10
 ) -> Response:
     """
     Perform a PUT request.
@@ -236,8 +236,8 @@ def put(
 
 def delete(
     url: str,
-    headers: Optional[Dict[str, str]] = None,
-    timeout: Optional[float] = 10
+    headers: dict[str, str] | None = None,
+    timeout: float | None = 10
 ) -> Response:
     """
     Perform a DELETE request.

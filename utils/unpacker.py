@@ -5,7 +5,8 @@ import gzip
 import shutil
 import re
 from pathlib import Path
-from typing import Callable, Optional, List, Dict, Any
+from collections.abc import Callable
+from typing import Any, Literal
 
 StrPath = Path | str
 
@@ -14,7 +15,7 @@ def is_compressed(file_path: StrPath) -> bool:
     return any(str(file_path).endswith(ext) for ext in ('.tar', '.zip', '.gz'))
 
 
-def list_contents(file_path: StrPath) -> List[str]:
+def list_contents(file_path: StrPath) -> list[str]:
     """
     Lists the contents of a compressed file based on its extension.
     Returns a list of file paths/names contained in the archive.
@@ -40,7 +41,7 @@ def list_contents(file_path: StrPath) -> List[str]:
     raise ValueError(f"Unsupported file extension: {ext}")
 
 
-def list_tar_contents(file_path: StrPath) -> List[str]:
+def list_tar_contents(file_path: StrPath) -> list[str]:
     """
     Lists all files and directories in a .tar or .tar.gz file.
 
@@ -51,13 +52,13 @@ def list_tar_contents(file_path: StrPath) -> List[str]:
         List of file/directory names in the tar archive
     """
     ext = os.path.splitext(file_path)[1].lower()
-    mode = 'r' if ext == '.tar' else 'r:gz'
+    mode: Literal['r', 'r:gz'] = 'r' if ext == '.tar' else 'r:gz'
 
     with tarfile.open(file_path, mode) as tar:
         return tar.getnames()
 
 
-def list_zip_contents(file_path: StrPath) -> List[str]:
+def list_zip_contents(file_path: StrPath) -> list[str]:
     """
     Lists all files and directories in a .zip file.
 
@@ -71,7 +72,7 @@ def list_zip_contents(file_path: StrPath) -> List[str]:
         return zip_ref.namelist()
 
 
-def list_gz_contents(file_path: StrPath) -> List[str]:
+def list_gz_contents(file_path: StrPath) -> list[str]:
     """
     Lists the content of a .gz file.
     Since .gz files typically contain a single compressed file,
@@ -87,7 +88,7 @@ def list_gz_contents(file_path: StrPath) -> List[str]:
     return [file_name]
 
 
-def get_detailed_contents(file_path: StrPath) -> List[Dict[str, Any]]:
+def get_detailed_contents(file_path: StrPath) -> list[dict[str, Any]]:
     """
     Gets detailed information about the contents of a compressed file.
 
@@ -112,7 +113,7 @@ def get_detailed_contents(file_path: StrPath) -> List[Dict[str, Any]]:
     raise ValueError(f"Unsupported file extension: {ext}")
 
 
-def get_tar_details(file_path: StrPath) -> List[Dict[str, Any]]:
+def get_tar_details(file_path: StrPath) -> list[dict[str, Any]]:
     """
     Gets detailed information about files in a tar archive.
 
@@ -123,9 +124,9 @@ def get_tar_details(file_path: StrPath) -> List[Dict[str, Any]]:
         List of dictionaries with file details (name, size, mtime, is_directory)
     """
     ext = os.path.splitext(file_path)[1].lower()
-    mode = 'r' if ext == '.tar' else 'r:gz'
+    mode: Literal['r', 'r:gz'] = 'r' if ext == '.tar' else 'r:gz'
 
-    details: List[Dict[str, Any]] = []
+    details: list[dict[str, Any]] = []
     with tarfile.open(file_path, mode) as tar:
         for member in tar.getmembers():
             details.append({
@@ -139,7 +140,7 @@ def get_tar_details(file_path: StrPath) -> List[Dict[str, Any]]:
     return details
 
 
-def get_zip_details(file_path: StrPath) -> List[Dict[str, Any]]:
+def get_zip_details(file_path: StrPath) -> list[dict[str, Any]]:
     """
     Gets detailed information about files in a zip archive.
 
@@ -149,7 +150,7 @@ def get_zip_details(file_path: StrPath) -> List[Dict[str, Any]]:
     Returns:
         List of dictionaries with file details (name, size, compress_size, date_time, is_directory)
     """
-    details: List[Dict[str, Any]] = []
+    details: list[dict[str, Any]] = []
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         for info in zip_ref.infolist():
             details.append({
@@ -163,7 +164,7 @@ def get_zip_details(file_path: StrPath) -> List[Dict[str, Any]]:
     return details
 
 
-def get_gz_details(file_path: StrPath) -> List[Dict[str, Any]]:
+def get_gz_details(file_path: StrPath) -> list[dict[str, Any]]:
     """
     Gets information about a .gz file.
 
@@ -184,13 +185,16 @@ def get_gz_details(file_path: StrPath) -> List[Dict[str, Any]]:
     }]
 
 
-def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
+def extract_all_files(file_path: StrPath, output_dir: StrPath | None = None,
                       preserve_structure: bool = True, logfunc: Callable[[str], None] = print) -> list[str]:
     """
     Function that checks the given compressed file's extension and extracts it with the appropriate module.
     It accepts .zip, .tar.gz and .gz files.
-    By default, the files are extracted into the same directory of the compressed file (that can be changed with output_dir).
-    By default, the folder structure inside the compressed file is preserved (that can be changed with preserve_structure).
+    By default, the files are extracted into the same directory of the compressed file
+    (that can be changed with output_dir).
+    By default, the folder structure inside the compressed file is preserved
+    (that can be changed with preserve_structure).
+
     Returns a list with the extracted files' paths.
     """
     assert (match := re.search(r'(\.tar\.gz|\.tar|\.zip|\.gz)$', str(file_path))), \
@@ -213,24 +217,26 @@ def extract_all_files(file_path: StrPath, output_dir: Optional[StrPath] = None,
     raise ValueError(f"Unsupported file extension: {ext}")
 
 
-def extract_tar_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
+def extract_tar_file(file_path: StrPath, output_dir: StrPath | None = None,
                      preserve_structure: bool = True, logfunc: Callable[[str], None] = print) -> list[str]:
     """
     Extracts all files from a .tar or .tar.gz file into a specified output directory.
-    By default, the files are extracted into the same directory of the compressed file (that can be changed with output_dir).
+    By default, the files are extracted into the same directory of the compressed file
+    (that can be changed with output_dir).
     By default, the folder structure inside the compressed file is preserved.
+
     Returns a list with the extracted files' paths.
     """
     if output_dir is None:
         output_dir = os.path.dirname(file_path)
     ext = os.path.splitext(file_path)[1].lower()
     assert ext == '.tar.gz' or ext == '.tar'
-    mode = 'r' if ext == '.tar' else 'r:gz'
+    mode: Literal['r', 'r:gz'] = 'r' if ext == '.tar' else 'r:gz'
 
     extracted_paths: list[str] = []
     with tarfile.open(file_path, mode) as tar:
         if preserve_structure:
-            tar.extractall(path=output_dir)
+            tar.extractall(path=output_dir)  # nosec B202
         else:
             for member in tar.getmembers():
                 if member.isfile():
@@ -243,12 +249,13 @@ def extract_tar_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
     return extracted_paths
 
 
-def extract_zip_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
+def extract_zip_file(file_path: StrPath, output_dir: StrPath | None = None,
                      preserve_structure: bool = True, logfunc: Callable[[str], None] = print) -> list[str]:
     """
     Extracts all files from a .zip file into a specified output directory.
     By default, the files are extracted into the same directory of the compressed file.
     By default, the folder structure inside the compressed file is preserved.
+
     Returns a list with the extracted files' paths.
     """
     assert str(file_path).lower().endswith('.zip')
@@ -258,7 +265,7 @@ def extract_zip_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
     extracted_paths: list[str] = []
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         if preserve_structure:
-            zip_ref.extractall(path=output_dir)
+            zip_ref.extractall(path=output_dir)  # nosec B202
         else:
             for file in zip_ref.namelist():
                 if not file.endswith('/'):  # Exclude directories
@@ -272,10 +279,13 @@ def extract_zip_file(file_path: StrPath, output_dir: Optional[StrPath] = None,
     return extracted_paths
 
 
-def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None, logfunc: Callable[[str], None] = print) -> str:
+def extract_gz_file(file_path: StrPath, output_dir: StrPath | None = None,
+                    logfunc: Callable[[str], None] = print) -> str:
     """
     Extracts a .gz file into a specified output directory.
-    If no output directory is specified, the files are extracted into the same directory of the compressed file.
+    If no output directory is specified, the files are extracted
+    into the same directory of the compressed file.
+
     Returns the path of the decompressed file.
     """
     file_name, ext = os.path.splitext(os.path.basename(file_path))
@@ -286,7 +296,7 @@ def extract_gz_file(file_path: StrPath, output_dir: Optional[StrPath] = None, lo
     with gzip.open(file_path, 'rb') as f_in:
         decompressed_file_path = os.path.join(output_dir, file_name)
         with open(decompressed_file_path, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)  # type: ignore
+            shutil.copyfileobj(f_in, f_out)
 
         logfunc(f"Extracted gz file at {decompressed_file_path}")
         return decompressed_file_path
@@ -296,19 +306,23 @@ if __name__ == "__main__":
     from utils.cliparse import CliParser, OptArg, VarArgs, FlagArg
 
     class UnpackerArgs(CliParser):
-        file_paths = VarArgs('file_paths', nargs='+', help='Path to the compressed file to unpack', type=Path,
+        file_paths = VarArgs('file_paths', nargs='+', help='Path to the compressed file to unpack', argtype=Path,
                              validation=lambda p: p.exists() and is_compressed(p))
 
-        output_dir = OptArg('-o', '--output-dir', type=Path, validation=lambda p: p.is_dir() and os.access(p, os.W_OK),
+        output_dir = OptArg('-o', '--output-dir', argtype=Path,
+                            validation=lambda p: p.is_dir() and os.access(p, os.W_OK),
                             help='Directory to extract files to (default: same as file path)')
 
-        preserve_structure = FlagArg('--ps', '--preserve-structure', help='Preserve folder structure inside the compressed file')
+        preserve_structure = FlagArg('--ps', '--preserve-structure',
+                                     help='Preserve folder structure inside the compressed file')
 
         list = FlagArg('-l', '--list', help='List contents of the compressed file without extracting')
 
         def _post_validate(self):
             print(f'{self.list.value=}, {self.output_dir.value=}, {self.preserve_structure.value=}')
-            print(f'{UnpackerArgs.list.value=}, {UnpackerArgs.output_dir.value=}, {UnpackerArgs.preserve_structure.value=}')
+            print(f'{UnpackerArgs.list.value=},',
+                  f'{UnpackerArgs.output_dir.value=}',
+                  f'{UnpackerArgs.preserve_structure.value=}')
             if self.list.value:
                 assert not self.output_dir.value and not self.preserve_structure.value, \
                     "Cannot use --list with --output-dir or --preserve-structure"

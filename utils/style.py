@@ -1,7 +1,7 @@
-# Mais cores em https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT75fjCYt2l_dPGNNJcUj-nCjMSEgaCK1blGJcNR83oz8k47qFsWgF1Hw&s=10
+# Mais cores em https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT75fjCYt2l_dPGNNJcUj-nCjMSEgaCK1blGJcNR83oz8k47qFsWgF1Hw&s=10  # noqa: B950
 
 from enum import Enum, auto
-from typing import Callable, Optional
+from collections.abc import Callable
 import re
 import shutil
 
@@ -65,9 +65,10 @@ class BGCOLOR(Enum):
 
 Painter = Callable[[str], str]
 
-def get_painter(color: Optional[Color] = None,
-                background: Optional[BGCOLOR] = None,
-                format: Optional[Format] = None
+
+def get_painter(color: Color | None = None,
+                background: BGCOLOR | None = None,
+                format: Format | None = None
                 ) -> Callable[[str], str]:
     var_prefix = ''
     if color:
@@ -148,11 +149,11 @@ def get_visible_length(text: str) -> int:
 
 
 def create_panel(content: str,
-                 title: Optional[str] = None,
-                 color: Optional[Color] = None,
+                 title: str | None = None,
+                 color: Color | None = None,
                  padding: int = 0,
                  expand: bool = True,
-                 width: Optional[int] = None,
+                 width: int | None = None,
                  align: Alignment = Alignment.LEFT) -> str:
     """
     Create a simple text panel with borders.
@@ -285,7 +286,7 @@ if __name__ == '__main__':
     content = """This is a multi-line panel
 with several lines of text
 that demonstrates wrapping.
-And this is another very long text written in the same line without any linebreak. I repeat: And this is another very long text written in the same line without any linebreak."""
+And this is another very long text written in the same line without any linebreak. I repeat: And this is another very long text written in the same line without any linebreak."""  # noqa: B950
     print(create_panel(content, title="Info", color=Color.BLUE, padding=2))
     print()
 

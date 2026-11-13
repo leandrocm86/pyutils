@@ -1,23 +1,26 @@
-#!/usr/bin/env python3
 """
-Interactive Frame Inspector with Textual - Mobile Responsive
-Displays stack frames and their local variables in a collapsible tree with mouse support
-Responsive layout: horizontal on desktop, vertical on mobile/narrow screens
+Interactive Frame Inspector with Textual - Mobile responsive and mouse support.
+Displays stack frames and their local variables in a collapsible tree.
+Responsive layout: horizontal on desktop, vertical on mobile/narrow screens.
 """
 
-lazy from textual.app import App, ComposeResult
-lazy from textual.widgets import Tree, Static, Header, Footer, Button
-lazy from textual.containers import Horizontal
-lazy from textual.binding import Binding
+lazy from textual.app import App, ComposeResult  # type: ignore
+lazy from textual.widgets import Input, Tree, Static, Header, Footer, Button  # type: ignore
+lazy from textual.containers import Container, Horizontal  # type: ignore
+lazy from textual.binding import Binding  # type: ignore
+lazy from textual.screen import ModalScreen  # type: ignore
+
 import traceback
 import linecache
-from typing import Any, Dict, Optional
+from typing import Any
 from types import TracebackType
 
+lazy from utils import Mut
 
-def inspect_frames(exc_traceback: Optional[TracebackType] = None,
-                   exc_type: Optional[type] = None,
-                   exc_value: Optional[BaseException] = None,
+
+def inspect_frames(exc_traceback: TracebackType | None = None,
+                   exc_type: type | None = None,
+                   exc_value: BaseException | None = None,
                    max_items: int = 50):
     """Launch the interactive frame inspector"""
 
@@ -101,16 +104,16 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
         }
         """
 
-        BINDINGS = [
+        BINDINGS = (
             Binding("q", "quit", "Quit"),
             Binding("r", "refresh", "Refresh"),
             Binding("f", "toggle_layout", "Toggle Layout"),
             Binding("l", "change_limit", "Change Tree Limit"),
-        ]
+        )
 
-        def __init__(self, exc_traceback: Optional[TracebackType] = None,
-                     exc_type: Optional[type] = None,
-                     exc_value: Optional[BaseException] = None,
+        def __init__(self, exc_traceback: TracebackType | None = None,
+                     exc_type: type | None = None,
+                     exc_value: BaseException | None = None,
                      max_items: int = 50):
             super().__init__()
             self.exc_traceback = exc_traceback
@@ -129,29 +132,29 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
             """Extract all frames from the traceback"""
             frames: list[dict[str, Any]] = []
             if self.exc_traceback:
-                tb = self.exc_traceback
-                while tb:
-                    frame = tb.tb_frame
+                var_tb: TracebackType | None = self.exc_traceback
+                while var_tb:
+                    frame = var_tb.tb_frame
                     filename = frame.f_code.co_filename
-                    lineno = tb.tb_lineno
+                    lineno = var_tb.tb_lineno
                     func_name = frame.f_code.co_name
 
                     # Get the actual line of code
                     try:
-                        code_line = linecache.getline(filename, lineno).strip()
+                        var_code_line = linecache.getline(filename, lineno).strip()
                     except Exception:
-                        code_line = "<code unavailable>"
+                        var_code_line = "<code unavailable>"
 
                     frames.append({
                         'frame': frame,
                         'filename': filename,
                         'lineno': lineno,
                         'func_name': func_name,
-                        'code_line': code_line,
+                        'code_line': var_code_line,
                         'locals': frame.f_locals.copy(),
                         'globals': frame.f_globals
                     })
-                    tb = tb.tb_next
+                    var_tb = var_tb.tb_next
 
             return frames
 
@@ -161,6 +164,7 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
             # Create initial horizontal layout
             with Horizontal(id="main-container"):
                 self.tree_widget = Tree("Stack Frames", id="tree")
+                assert self.tree_widget
                 self.tree_widget.show_root = True
                 self.tree_widget.show_guides = True
                 yield self.tree_widget
@@ -208,22 +212,22 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
                     )
 
                 # Add each frame
-                for i, frame_info in enumerate(self.frames):
+                for i, var_frame_info in enumerate(self.frames):
                     # Create a descriptive label for the frame
-                    filename = frame_info['filename'].split('/')[-1]  # Just the filename
-                    func_name = frame_info['func_name']
-                    code_line = frame_info['code_line']
+                    filename = var_frame_info['filename'].split('/')[-1]  # Just the filename
+                    func_name = var_frame_info['func_name']
+                    var_code_line = var_frame_info['code_line']
 
                     # Truncate long code lines
-                    if len(code_line) > 60:
-                        code_line = code_line[:57] + "..."
+                    if len(var_code_line) > 60:
+                        var_code_line = var_code_line[:57] + "..."
 
-                    frame_label = f"📍 {filename}:{frame_info['lineno']} in {func_name}()"
+                    frame_label = f"📍 {filename}:{var_frame_info['lineno']} in {func_name}()"
                     frame_node = self.tree_widget.root.add(
                         frame_label,
                         data={
                             'type': 'frame',
-                            'frame_info': frame_info,
+                            'var_frame_info': var_frame_info,
                             'frame_index': i
                         },
                         expand=i == len(self.frames) - 1  # Expand the last (innermost) frame
@@ -231,21 +235,21 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
 
                     # Add code line as a sub-node
                     frame_node.add(
-                        f"💻 {code_line}",
+                        f"💻 {var_code_line}",
                         data={
                             'type': 'code_line',
-                            'frame_info': frame_info
+                            'var_frame_info': var_frame_info
                         }
                     )
 
                     # Add local variables
-                    locals_dict = frame_info['locals']
+                    locals_dict = var_frame_info['locals']
                     if locals_dict:
                         locals_node = frame_node.add("📋 Local Variables", expand=False)
                         self.populate_variables_node(locals_node, locals_dict, max_depth=4)
 
                     # Add globals (only show non-builtin ones)
-                    globals_dict = {k: v for k, v in frame_info['globals'].items()
+                    globals_dict = {k: v for k, v in var_frame_info['globals'].items()
                                     if not k.startswith('__') and k not in ['__builtins__']}
                     if globals_dict:
                         globals_node = frame_node.add("🌐 Global Variables", expand=False)
@@ -253,7 +257,8 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
 
                 self.tree_widget.root.expand()
 
-        def populate_variables_node(self, node: Any, variables_dict: dict[str, Any], max_depth: int = 3, current_depth: int = 0):
+        def populate_variables_node(self, node: Any, variables_dict: dict[str, Any],
+                                    max_depth: int = 3, current_depth: int = 0):
             """Populate a node with variables (similar to the original populate_tree_node)"""
             if current_depth >= max_depth:
                 return
@@ -285,11 +290,11 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
                 if len(value) > 0:
                     if len(value) <= self.max_items:  # Show all items for small dicts
                         for key, val in value.items():
-                            key_str = str(key)[:30]  # Truncate long keys
+                            var_key_str = str(key)[:30]  # Truncate long keys
                             val_type = type(val).__name__
 
                             key_node = parent_node.add(
-                                f'🔑 "{key_str}": {val_type}',
+                                f'🔑 "{var_key_str}": {val_type}',
                                 data={
                                     'type': 'dict_item',
                                     'name': f'[{key}]',
@@ -304,39 +309,39 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
                                 self.add_content_subnodes(key_node, val, current_depth + 1, max_depth)
                     else:
                         # For large dicts, show first half and last half
-                        items = list(value.items())
-                        half_limit = self.max_items // 2
+                        var_items = list(value.items())
+                        var_half_limit = self.max_items // 2
 
                         # First half
-                        for key, val in items[:half_limit]:
-                            key_str = str(key)[:30]
-                            val_type = type(val).__name__
+                        for key, val in var_items[:var_half_limit]:
+                            var_key_str = str(key)[:30]
+                            var_val_type = type(val).__name__
                             parent_node.add(
-                                f'🔑 "{key_str}": {val_type}',
+                                f'🔑 "{var_key_str}": {var_val_type}',
                                 data={
                                     'type': 'dict_item',
                                     'name': f'[{key}]',
                                     'value': val,
-                                    'var_type': val_type,
+                                    'var_type': var_val_type,
                                     'parent_obj': value
                                 }
                             )
 
                         # Middle separator
-                        hidden_count = len(value) - self.max_items
-                        parent_node.add(f"... and {hidden_count} more items in between ...")
+                        var_hidden_count = len(value) - self.max_items
+                        parent_node.add(f"... and {var_hidden_count} more items in between ...")
 
                         # Last half
-                        for key, val in items[-half_limit:]:
-                            key_str = str(key)[:30]
-                            val_type = type(val).__name__
+                        for key, val in var_items[-var_half_limit:]:
+                            var_key_str = str(key)[:30]
+                            var_val_type = type(val).__name__
                             parent_node.add(
-                                f'🔑 "{key_str}": {val_type}',
+                                f'🔑 "{var_key_str}": {var_val_type}',
                                 data={
                                     'type': 'dict_item',
                                     'name': f'[{key}]',
                                     'value': val,
-                                    'var_type': val_type,
+                                    'var_type': var_val_type,
                                     'parent_obj': value
                                 }
                             )
@@ -347,77 +352,70 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
                     type_name = "📋" if isinstance(value, list) else "📦"
 
                     if len(value) <= self.max_items:  # Show all items for small collections
-                        for i, item in enumerate(value):
-                            item_type = type(item).__name__
+                        for i, var_item in enumerate(value):
+                            var_item_type = type(var_item).__name__
 
                             item_node = parent_node.add(
-                                f'{type_name} [{i}]: {item_type}',
+                                f'{type_name} [{i}]: {var_item_type}',
                                 data={
                                     'type': 'list_item',
                                     'name': f'[{i}]',
-                                    'value': item,
-                                    'var_type': item_type,
+                                    'value': var_item,
+                                    'var_type': var_item_type,
                                     'parent_obj': value
                                 }
                             )
 
                             # Recursively add content for nested objects
                             if current_depth < max_depth - 1:
-                                self.add_content_subnodes(item_node, item, current_depth + 1, max_depth)
+                                self.add_content_subnodes(item_node, var_item, current_depth + 1, max_depth)
                     else:
                         # For large collections, show first half and last half
-                        half_limit = self.max_items // 2
+                        var_half_limit = self.max_items // 2
+
+                        def add_node(parent_node: Mut[Any], index: int, value: Any) -> None:
+                            var_item = value[i]
+                            var_item_type = type(var_item).__name__
+                            with parent_node.unwrap() as mut:
+                                mut.add(
+                                    f'{type_name} [{i}]: {var_item_type}',
+                                    data={
+                                        'type': 'list_item',
+                                        'name': f'[{i}]',
+                                        'value': var_item,
+                                        'var_type': var_item_type,
+                                        'parent_obj': value
+                                    }
+                                )
 
                         # First half
-                        for i in range(half_limit):
-                            item = value[i]
-                            item_type = type(item).__name__
-                            parent_node.add(
-                                f'{type_name} [{i}]: {item_type}',
-                                data={
-                                    'type': 'list_item',
-                                    'name': f'[{i}]',
-                                    'value': item,
-                                    'var_type': item_type,
-                                    'parent_obj': value
-                                }
-                            )
+                        for i in range(var_half_limit):
+                            add_node(Mut(parent_node), i, value)
 
                         # Middle separator
-                        hidden_count = len(value) - self.max_items
-                        parent_node.add(f"... and {hidden_count} more items in between ...")
+                        var_hidden_count = len(value) - self.max_items
+                        parent_node.add(f"... and {var_hidden_count} more items in between ...")
 
                         # Last half
-                        for i in range(len(value) - half_limit, len(value)):
-                            item = value[i]
-                            item_type = type(item).__name__
-                            parent_node.add(
-                                f'{type_name} [{i}]: {item_type}',
-                                data={
-                                    'type': 'list_item',
-                                    'name': f'[{i}]',
-                                    'value': item,
-                                    'var_type': item_type,
-                                    'parent_obj': value
-                                }
-                            )
+                        for i in range(len(value) - var_half_limit, len(value)):
+                            add_node(Mut(parent_node), i, value)
 
             # Handle sets
             elif isinstance(value, set):
                 if len(value) > 0:
-                    items = list(value)  # Convert to list for indexing
+                    var_items = list(value)  # Convert to list for indexing
                     display_count = min(self.max_items, len(value))
 
                     for i in range(display_count):
-                        item = items[i]
-                        item_type = type(item).__name__
+                        var_item = var_items[i]
+                        var_item_type = type(var_item).__name__
                         parent_node.add(
-                            f'🎯 {item_type}',
+                            f'🎯 {var_item_type}',
                             data={
                                 'type': 'set_item',
                                 'name': f'set_item_{i}',
-                                'value': item,
-                                'var_type': item_type,
+                                'value': var_item,
+                                'var_type': var_item_type,
                                 'parent_obj': value
                             }
                         )
@@ -427,13 +425,10 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
 
             # Handle custom objects with __dict__
             elif hasattr(value, '__dict__') and not isinstance(value, (str, int, float, bool, type)):
-                try:
-                    obj_dict = value.__dict__
-                    if obj_dict:
-                        obj_node = parent_node.add("🏗️ Object Properties", expand=False)
-                        self.populate_variables_node(obj_node, obj_dict, max_depth, current_depth + 1)
-                except Exception:
-                    pass
+                obj_dict = value.__dict__
+                if obj_dict:
+                    obj_node = parent_node.add("🏗️ Object Properties", expand=False)
+                    self.populate_variables_node(obj_node, obj_dict, max_depth, current_depth + 1)
 
         def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
             """Handle tree node selection to show details"""
@@ -443,78 +438,79 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
 
             if node.data:
                 data = node.data
-                details_text = self.format_details(data)
+                var_details_text = self.format_details(data)
             else:
-                details_text = f"[bold]{node.label}[/bold]\n\nThis is a category node."
+                var_details_text = f"[bold]{node.label}[/bold]\n\nThis is a category node."
 
             assert self.details_panel
-            self.details_panel.update(details_text)
+            self.details_panel.update(var_details_text)
 
-        def format_details(self, data: Dict) -> str:
+        def format_details(self, data: dict[str, Any]) -> str:
             """Format details for different types of data"""
             data_type = data.get('type', 'unknown')
 
             if data_type == 'exception':
                 exc_type = data['exc_type']
                 exc_value = data['exc_value']
-                details = "[bold red]Exception Details[/bold red]\n\n"
-                details += f"[bold]Type:[/bold] {exc_type.__name__}\n"
-                details += f"[bold]Message:[/bold] {str(exc_value)}\n\n"
+                var_details = "[bold red]Exception Details[/bold red]\n\n"
+                var_details += f"[bold]Type:[/bold] {exc_type.__name__}\n"
+                var_details += f"[bold]Message:[/bold] {exc_value!s}\n\n"
 
                 if hasattr(exc_value, '__traceback__') and exc_value.__traceback__:
-                    details += "[bold]Traceback:[/bold]\n"
+                    var_details += "[bold]Traceback:[/bold]\n"
                     tb_lines = traceback.format_exception(exc_type, exc_value, exc_value.__traceback__)
                     tb_text = ''.join(tb_lines)
                     max_tb_length = 1500 if self.is_mobile_layout else 2500
                     if len(tb_text) > max_tb_length:
-                        details += f"{tb_text[:max_tb_length]}...\n"
-                        details += "[dim](Traceback truncated)[/dim]\n"
+                        var_details += f"{tb_text[:max_tb_length]}...\n"
+                        var_details += "[dim](Traceback truncated)[/dim]\n"
                     else:
-                        details += tb_text
+                        var_details += tb_text
 
-                return details
+                return var_details
 
             elif data_type == 'frame':
-                frame_info = data['frame_info']
+                var_frame_info = data['var_frame_info']
                 frame_index = data['frame_index']
 
-                details = f"[bold cyan]Frame #{frame_index}[/bold cyan]\n\n"
-                details += f"[bold]File:[/bold] {frame_info['filename']}\n"
-                details += f"[bold]Line:[/bold] {frame_info['lineno']}\n"
-                details += f"[bold]Function:[/bold] {frame_info['func_name']}()\n\n"
-                details += f"[bold]Code:[/bold]\n{frame_info['code_line']}\n\n"
+                var_details = f"[bold cyan]Frame #{frame_index}[/bold cyan]\n\n"
+                var_details += f"[bold]File:[/bold] {var_frame_info['filename']}\n"
+                var_details += f"[bold]Line:[/bold] {var_frame_info['lineno']}\n"
+                var_details += f"[bold]Function:[/bold] {var_frame_info['func_name']}()\n\n"
+                var_details += f"[bold]Code:[/bold]\n{var_frame_info['code_line']}\n\n"
 
                 # Show some context around the line
                 try:
                     context_lines = []
-                    start_line = max(1, frame_info['lineno'] - 2)
-                    end_line = frame_info['lineno'] + 3
+                    start_line = max(1, var_frame_info['lineno'] - 2)
+                    end_line = var_frame_info['lineno'] + 3
 
                     for line_num in range(start_line, end_line):
-                        line_content = linecache.getline(frame_info['filename'], line_num).rstrip()
+                        line_content = linecache.getline(var_frame_info['filename'], line_num).rstrip()
                         if line_content:
-                            marker = ">>> " if line_num == frame_info['lineno'] else "    "
+                            marker = ">>> " if line_num == var_frame_info['lineno'] else "    "
                             context_lines.append(f"{marker}{line_num:4}: {line_content}")
 
                     if context_lines:
-                        details += "[bold]Context:[/bold]\n"
-                        details += "\n".join(context_lines) + "\n\n"
+                        var_details += "[bold]Context:[/bold]\n"
+                        var_details += "\n".join(context_lines) + "\n\n"
 
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(e)
 
-                details += f"[bold]Local Variables:[/bold] {len(frame_info['locals'])}\n"
-                details += f"[bold]Global Variables:[/bold] {len([k for k in frame_info['globals'].keys() if not k.startswith('__')])}\n"
+                var_details += f"[bold]Local Variables:[/bold] {len(var_frame_info['locals'])}\n"
+                global_vars = [k for k in var_frame_info['globals'] if not k.startswith('__')]
+                var_details += f"[bold]Global Variables:[/bold] {len(global_vars)}\n"
 
-                return details
+                return var_details
 
             elif data_type == 'code_line':
-                frame_info = data['frame_info']
-                details = "[bold yellow]Code Line[/bold yellow]\n\n"
-                details += f"[bold]File:[/bold] {frame_info['filename']}\n"
-                details += f"[bold]Line {frame_info['lineno']}:[/bold]\n"
-                details += f"{frame_info['code_line']}\n\n"
-                return details
+                var_frame_info = data['var_frame_info']
+                var_details = "[bold yellow]Code Line[/bold yellow]\n\n"
+                var_details += f"[bold]File:[/bold] {var_frame_info['filename']}\n"
+                var_details += f"[bold]Line {var_frame_info['lineno']}:[/bold]\n"
+                var_details += f"{var_frame_info['code_line']}\n\n"
+                return var_details
 
             elif data_type in ['variable', 'dict_item', 'list_item', 'set_item']:
                 # Use the original format_property_details logic
@@ -523,59 +519,56 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
             else:
                 return f"[bold]{data_type}[/bold]\n\nNo additional details available."
 
-        def format_property_details(self, data: Dict) -> str:
+        def format_property_details(self, data: dict[str, Any]) -> str:
             """Format property details for the details panel (from original code)"""
             name = data['name']
             value = data['value']
             prop_type = data['var_type']
 
-            details = f"[bold cyan]{name}[/bold cyan]\n\n"
-            details += f"[bold]Type:[/bold] [italic]{prop_type}[/italic]\n\n"
+            var_details = f"[bold cyan]{name}[/bold cyan]\n\n"
+            var_details += f"[bold]Type:[/bold] [italic]{prop_type}[/italic]\n\n"
 
             # Show the full value
             try:
-                details += "[bold]Value:[/bold]\n"
+                var_details += "[bold]Value:[/bold]\n"
 
                 max_display_length = 3000 if not self.is_mobile_layout else 100
                 value_str = str(value)
 
                 if len(value_str) > max_display_length:
                     middle_index = max_display_length // 2
-                    details += f"{value_str[:middle_index]} (...) {value_str[-middle_index:]}\n\n"
-                    details += f"[dim](Value truncated - showing only {max_display_length} characters)[/dim]\n\n"
+                    var_details += f"{value_str[:middle_index]} (...) {value_str[-middle_index:]}\n\n"
+                    var_details += f"[dim](Value truncated - showing only {max_display_length} characters)[/dim]\n\n"
                 else:
-                    details += f"{value_str}\n\n"
+                    var_details += f"{value_str}\n\n"
 
                 # Show additional info for collections
                 if isinstance(value, (list, tuple)):
-                    details += f"[bold]Length:[/bold] {len(value)}\n"
+                    var_details += f"[bold]Length:[/bold] {len(value)}\n"
                     if value:
-                        item_types = list({type(item).__name__ for item in value[:20]})
-                        details += f"[bold]Item types:[/bold] {', '.join(item_types)}\n"
+                        var_item_types = list({type(item).__name__ for item in value[:20]})
+                        var_details += f"[bold]Item types:[/bold] {', '.join(var_item_types)}\n"
                 elif isinstance(value, dict):
-                    details += f"[bold]Keys:[/bold] {len(value)}\n"
+                    var_details += f"[bold]Keys:[/bold] {len(value)}\n"
                     if value:
                         sample_keys = list(value.keys())[:5]
-                        details += f"[bold]Sample keys:[/bold] {sample_keys}\n"
-                        key_types = list({type(k).__name__ for k in value.keys()})
+                        var_details += f"[bold]Sample keys:[/bold] {sample_keys}\n"
+                        key_types = list({type(k).__name__ for k in value})
                         value_types = list({type(v).__name__ for v in value.values()})
-                        details += f"[bold]Key types:[/bold] {', '.join(key_types)}\n"
-                        details += f"[bold]Value types:[/bold] {', '.join(value_types)}\n"
+                        var_details += f"[bold]Key types:[/bold] {', '.join(key_types)}\n"
+                        var_details += f"[bold]Value types:[/bold] {', '.join(value_types)}\n"
                 elif isinstance(value, set):
-                    details += f"[bold]Size:[/bold] {len(value)}\n"
+                    var_details += f"[bold]Size:[/bold] {len(value)}\n"
                     if value:
-                        item_types = list({type(item).__name__ for item in list(value)[:10]})
-                        details += f"[bold]Item types:[/bold] {', '.join(item_types)}\n"
+                        var_item_types = list({type(item).__name__ for item in list(value)[:10]})
+                        var_details += f"[bold]Item types:[/bold] {', '.join(var_item_types)}\n"
                 elif hasattr(value, '__len__'):
-                    try:
-                        details += f"[bold]Length:[/bold] {len(value)}\n"
-                    except Exception:
-                        pass
+                    var_details += f"[bold]Length:[/bold] {len(value)}\n"
 
             except Exception as e:
-                details += f"[red]Error displaying value: {e}[/red]\n"
+                var_details += f"[red]Error displaying value: {e}[/red]\n"
 
-            return details
+            return var_details
 
         def action_refresh(self) -> None:
             """Refresh the tree"""
@@ -583,9 +576,6 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
 
         def action_change_limit(self) -> None:
             """Change the limit for displaying collection items"""
-            from textual.widgets import Input
-            from textual.containers import Container
-            from textual.screen import ModalScreen
 
             class LimitInputScreen(ModalScreen):
                 def __init__(self, current_limit: int):
@@ -594,7 +584,8 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
 
                 def compose(self) -> ComposeResult:
                     with Container(id="limit-dialog"):
-                        yield Static(f"Current limit: {self.current_limit}\nEnter new limit for collection items:", id="limit-label")
+                        yield Static(f"Current limit: {self.current_limit}\n"
+                                     + "Enter new limit for collection items:", id="limit-label")
                         yield Input(value=str(self.current_limit), placeholder="Enter number...", id="limit-input")
                         with Horizontal():
                             yield Button("OK", variant="primary", id="ok-btn")
@@ -603,10 +594,10 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
                 def on_button_pressed(self, event: Button.Pressed) -> None:
                     if event.button.id == "ok-btn":
                         try:
-                            input_widget = self.query_one("#limit-input", Input)
-                            new_limit = int(input_widget.value)
-                            if new_limit > 0:
-                                self.dismiss(new_limit)
+                            var_input_widget = self.query_one("#limit-input", Input)
+                            var_new_limit = int(var_input_widget.value)
+                            if var_new_limit > 0:
+                                self.dismiss(var_new_limit)
                             else:
                                 self.dismiss(None)
                         except ValueError:
@@ -616,9 +607,9 @@ def inspect_frames(exc_traceback: Optional[TracebackType] = None,
 
                 def on_input_submitted(self, event: Input.Submitted) -> None:
                     try:
-                        new_limit = int(event.value)
-                        if new_limit > 0:
-                            self.dismiss(new_limit)
+                        var_new_limit = int(event.value)
+                        if var_new_limit > 0:
+                            self.dismiss(var_new_limit)
                         else:
                             self.dismiss(None)
                     except ValueError:

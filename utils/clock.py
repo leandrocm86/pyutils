@@ -5,14 +5,15 @@ import time
 class Clock:
     """ Timer that tracks elapsed time, allowing for multiple instances to be created and managed. """
 
-    clocks_by_name: dict[str, Clock] = {}
+    clocks_by_name: dict[str, Clock]
 
     def __init__(self, name: str | None = None):
+        self.clocks_by_name = {}
         if name:
             Clock.clocks_by_name[name] = self
         self.name = name
         self.last_timestamp = time.time()
-        self.total_time = 0
+        self.total_time = 0.0
 
     def check(self) -> float:
         ''' Returns how much time has passed since the previous check (or since the start, for the first call). '''

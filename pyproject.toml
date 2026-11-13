@@ -4,15 +4,16 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyutils"
-version = "0.3.0"
+version = "0.4.0"
 description = "Personal utility python modules"
 requires-python = ">=3.15"
-
-[project.optional-dependencies]
-test = [
-    "pytest"
-]
 
 [tool.hatch.build.targets.wheel]
 packages = ["utils", "std"]
 include = ["utils/py.typed", "std/py.typed"]
+
+[tool.pyright]
+exclude = ["tests"]
+
+[tool.ty.src]
+exclude = ["**/tests"]

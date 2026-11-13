@@ -2,7 +2,6 @@
 # Modulo wrapper agrupando toda a standard library do python.
 # Visa facilitar (reduzindo) os imports em cada script.
 #############################################################
-
 lazy import abc as abc
 lazy import argparse as argparse
 lazy import array as array
@@ -50,7 +49,10 @@ lazy import filecmp as filecmp
 lazy import fileinput as fileinput
 lazy import fnmatch as fnmatch
 lazy import fractions as fractions
-lazy import ftplib as ftplib
+
+# B402[bandit]: FTP is considered insecure. Use SSH/SFTP/SCP or some other encrypted protocol
+# lazy import ftplib as ftplib
+
 lazy import functools as functools
 lazy import gc as gc
 lazy import genericpath as genericpath
@@ -97,7 +99,7 @@ lazy import operator as operator
 lazy import optparse as optparse
 lazy import os as os
 lazy import pathlib as pathlib
-lazy import pdb as pdb
+lazy import pdb as pdb  # noqa
 lazy import pickle as pickle
 lazy import pickletools as pickletools
 lazy import pkgutil as pkgutil
@@ -182,7 +184,10 @@ lazy import weakref as weakref
 lazy import webbrowser as webbrowser
 lazy import wsgiref as wsgiref
 lazy import xml as xml
-lazy import xmlrpc as xmlrpc
+
+# B411[bandit]: Using xmlrpc to parse untrusted XML data is known to be vulnerable to XML attacks
+# lazy import xmlrpc as xmlrpc
+
 lazy import zipapp as zipapp
 lazy import zipfile as zipfile
 lazy import zipimport as zipimport
@@ -198,8 +203,7 @@ lazy from decimal import Decimal as Decimal
 lazy from enum import Enum as Enum
 lazy from pathlib import Path as Path
 lazy from statistics import mean as mean, fmean as fmean
-lazy from typing import Any as Any, Callable as Callable, cast as cast, Collection as Collection, final as final, Final as Final, FrozenSet as FrozenSet, Iterable as Iterable, Mapping as Mapping, Optional as Optional, override as override, Self as Self, Sequence as Sequence, Set as Set, Type as Type, TypeVar as TypeVar
-lazy from typing import Sequence as Seq
+lazy from collections.abc import Callable as Callable, Collection as Collection, Iterable as Iterable, Mapping as Mapping, Sequence as Sequence
+lazy from collections.abc import Sequence as Seq  # noqa
+lazy from typing import Any as Any, cast as cast, final as final, Final as Final, Optional as Optional, override as override, Self as Self, Type as Type, TypeVar as TypeVar  # noqa
 lazy from urllib import request as request
-
-__all__ = ["Seq"]

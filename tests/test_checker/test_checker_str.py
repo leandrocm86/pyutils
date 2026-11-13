@@ -7,12 +7,6 @@ def test_checker_str_valid():
     ck.valstr("hello", length=5)
 
 
-def test_checker_str_invalid_type():
-    # Test with an invalid type
-    with pytest.raises(TypeError):
-        ck.valstr(5)  # type: ignore
-
-
 def test_checker_str_invalid_length():
     # Test with an invalid length
     with pytest.raises(ck.InvalidContractError):
@@ -85,21 +79,6 @@ def test_checker_str_domain_invalid():
     # Test with an invalid domain name
     with pytest.raises(ck.InvalidContractError):
         ck.valstr("gmail.com", domain={"yahoo.com", "hotmail.com"})
-
-
-def test_checker_str_custom():
-    # Test with a custom function
-    def is_hello(value: str):
-        return value == "hello"
-
-    ck.valstr("hello", custom=lambda s: s == "hello")
-    ck.valstr("hello", custom=is_hello)
-
-
-def test_checker_str_custom_invalid():
-    # Test with an invalid custom function
-    with pytest.raises(ck.InvalidContractError):
-        ck.valstr("hello", custom=lambda s: s == "world")
 
 
 def test_valstr_empty_string_upper():

@@ -1,6 +1,6 @@
 import threading
 import time
-from typing import Callable
+from collections.abc import Callable
 
 
 def spawn_interval_runner(task: Callable[[], None], stop_condition: Callable[[], bool], interval: float = 1.0):

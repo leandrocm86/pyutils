@@ -1,9 +1,7 @@
-from typing import TypeVar, Generic, Callable
+from collections.abc import Callable
 
-T = TypeVar('T')
-R = TypeVar('R')
 
-class Pipeable(Generic[T, R]):
+class Pipeable[T, R]:
     def __init__(self, func: Callable[[T], R]):
         self.func = func
 
@@ -31,52 +29,52 @@ if __name__ == "__main__":
     # This would be caught by mypy/pyright
     # result: str = "hello" | add_one  # Type error! ✓
 
+
 @Pipeable
-def _str(x):
+def str_(x):
     return str(x)
 
 
 @Pipeable
-def _int(x):
+def int_(x):
     return int(x)
 
 
 @Pipeable
-def _float(x):
+def float_(x):
     return float(x)
 
 
 @Pipeable
-def _bool(x):
+def bool_(x):
     return bool(x)
 
 
 @Pipeable
-def _set(x):
+def set_(x):
     return set(x)
 
 
 @Pipeable
-def _tuple(x):
+def tuple_(x):
     return tuple(x)
 
 
 @Pipeable
-def _len(x):
+def len_(x):
     return len(x)
 
 
 @Pipeable
-def _strip(x: str):
+def strip_(x: str):
     return x.strip()
 
 
 @Pipeable
-def _upper(x: str):
+def upper_(x: str):
     return x.upper()
 
 
 @Pipeable
-def _lower(x: str):
+def lower_(x: str):
     return x.lower()
-

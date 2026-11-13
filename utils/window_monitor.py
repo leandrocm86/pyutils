@@ -1,38 +1,38 @@
 import subprocess
 import threading
 import time
-from typing import Callable
+from collections.abc import Callable
 
 
 class WindowMonitor:
     """Monitor the active window title in a Linux environment using xdotool and xprop."""
     def __init__(self, logfunc: Callable[[str], None] | None = print):
-        self.current_window = None
-        self.previous_window = None
+        self.var_current_window = ''
+        self.var_previous_window = ''
         self._running = False
         self._lock = threading.Lock()
-        self._monitor_thread = None
+        self._monitor_thread: threading.Thread | None = None
         self._logfunc = logfunc
 
     def __log(self, message: str):
         if self._logfunc:
             self._logfunc(message)
 
-    def get_active_window_title(self) -> str | None:
+    def get_active_window_title(self) -> str:
         try:
             window_id = subprocess.check_output(['xdotool', 'getactivewindow']).decode().strip()
             xprop_output = subprocess.check_output(['xprop', '-id', window_id, 'WM_NAME']).decode().strip()
             return xprop_output.split('=')[-1].strip().strip('"')
         except Exception:
-            return None
+            return ''
 
     def _monitor_loop(self):
         while self._running:
             current_title = self.get_active_window_title()
-            if current_title != self.current_window:
+            if current_title != self.var_current_window:
                 with self._lock:
-                    self.previous_window = self.current_window
-                    self.current_window = current_title
+                    self.var_previous_window = self.var_current_window
+                    self.var_current_window = current_title
                 self.__log(f"Window changed: {current_title}")
             time.sleep(0.5)
 
@@ -54,5 +54,6 @@ class WindowMonitor:
         """Get the current and previous window titles in a thread-safe way."""
         self.__log('get_windows called')
         with self._lock:
-            self.__log(f'Lock acquired in get_windows. Returning current_window: {self.current_window}, previous_window: {self.previous_window}')
-            return self.current_window, self.previous_window
+            self.__log(f'Lock acquired in get_windows. Returning current_window: {self.var_current_window}'
+                       + f', previous_window: {self.var_previous_window}')
+            return self.var_current_window, self.var_previous_window

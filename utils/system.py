@@ -3,17 +3,11 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional
+from typing import Any
+from collections.abc import Callable, Iterable
 
 
-# A grande vantagem de usar este mod em vez de subprocess diretamente
-# é que ele utiliza parâmetros padrão mais seguros:
-# - check=True: lança exceção se o comando falhar (exit code != 0)
-# - capture_output=True: retorna o output do comando e confere se está vazio quando esperado (exec)
-# - timeout=10: tempo máximo de execução, evitando travamentos
-
-
-def package_resource(package: str, *relative: str, env_var: Optional[str] = None) -> Path:
+def package_resource(package: str, *relative: str, env_var: str | None = None) -> Path:
     """
     Localiza um arquivo ou diretorio de dados de um pacote, independente do modo de execucao.
 
@@ -69,8 +63,7 @@ def package_resource(package: str, *relative: str, env_var: Optional[str] = None
         if var_forced:
             var_path = Path(var_forced).expanduser()
             if not var_path.exists():
-                raise FileNotFoundError(
-                    "Override %s=%s nao existe" % (env_var, var_forced))
+                raise FileNotFoundError(f"Override {env_var}={var_forced} nao existe")
             return var_path
     var_tried: list[str] = []
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
@@ -79,7 +72,7 @@ def package_resource(package: str, *relative: str, env_var: Optional[str] = None
             var_tried.append(str(var_cand))
             if var_cand.exists():
                 return var_cand
-    var_anchor: Optional[Path] = None
+    var_anchor: Path | None = None
     try:
         var_spec = importlib.util.find_spec(package)
     except (ImportError, ValueError):
@@ -94,20 +87,19 @@ def package_resource(package: str, *relative: str, env_var: Optional[str] = None
         var_tried.append(str(var_cand))
         if var_cand.exists():
             return var_cand
-    raise FileNotFoundError(
-        "Recurso '%s' do pacote '%s' nao encontrado. Caminhos sondados: %s"
-        % (str(var_rel), package, var_tried))
+    raise FileNotFoundError(f"Recurso '{var_rel}' do pacote '{package}' nao encontrado. Caminhos sondados: {var_tried}")
 
 
 def __run(cmd: str | Iterable[str],
           check: bool,
           capture_output: bool,
-          timeout: Optional[float],
-          logfunc: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[Any]:
+          timeout: float | None,
+          logfunc: Callable[[str], None] | None) -> subprocess.CompletedProcess[Any]:
     if logfunc:
         logfunc(f'Executing: {cmd}')
     shell = isinstance(cmd, str)
-    result = subprocess.run(args=cmd, shell=shell, check=check, timeout=timeout, capture_output=capture_output, text=capture_output)  # type: ignore
+    result = subprocess.run(args=cmd, shell=shell, check=check, timeout=timeout,  # type: ignore
+                            capture_output=capture_output, text=capture_output)
     if logfunc:
         if result.stdout:
             logfunc(f'Stdout: {result.stdout}')
@@ -116,11 +108,17 @@ def __run(cmd: str | Iterable[str],
     return result
 
 
+# A grande vantagem de usar exec e read em vez de subprocess diretamente
+# é que ele utiliza parâmetros padrão mais seguros:
+# - check=True: lança exceção se o comando falhar (exit code != 0)
+# - capture_output=True: retorna o output do comando e confere se está vazio quando esperado (exec)
+# - timeout=10: tempo máximo de execução, evitando travamentos
+
 def exec(cmd: str | Iterable[str],
          check: bool = True,
          ignore_output: bool = False,
-         timeout: Optional[float] = 10,
-         logfunc: Optional[Callable[[str], None]] = print):
+         timeout: float | None = 10,
+         logfunc: Callable[[str], None] | None = print):
     """
     Executa um comando onde nenhum output é esperado.
     Params:
@@ -138,8 +136,8 @@ def exec(cmd: str | Iterable[str],
 
 def read(cmd: str | Iterable[str],
          check: bool = True,
-         timeout: Optional[float] = 10,
-         logfunc: Optional[Callable[[str], None]] = print) -> str:
+         timeout: float | None = 10,
+         logfunc: Callable[[str], None] | None = print) -> str:
     """
     Executa um comando e retorna os outputs (stdout + stderr).
     Params:
@@ -153,16 +151,15 @@ def read(cmd: str | Iterable[str],
 
 
 def exec_async(cmd: str | Iterable[str],
-        logfunc: Optional[Callable[[str], None]] = print,
-        envs_to_keep: Optional[set[str]] = None
-):
+               logfunc: Callable[[str], None] | None = print,
+               envs_to_keep: set[str] | None = None):
     """
     Execute the commands on the OS, not waiting for their output.
     It's not possible to check the output, nor setting a timeout.
     If cmd is a string, it will be executed with shell=True (not recommended if there's user input).
     """
     shell = isinstance(cmd, str)
-    
+
     values_by_envs: dict[str, str] = {}
     if envs_to_keep:
         from os import environ
@@ -173,8 +170,8 @@ def exec_async(cmd: str | Iterable[str],
     if logfunc:
         logfunc(f'Executing asynchronously: {cmd}. Envs preserved: {values_by_envs.keys()}')
     subprocess.Popen(args=cmd, shell=shell,  # type: ignore
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        start_new_session=True, close_fds=True, env=values_by_envs)
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True, close_fds=True, env=values_by_envs)
 
 
 def install_external_libs(*modules: str | dict, auto=False):
@@ -195,6 +192,7 @@ def install_external_libs(*modules: str | dict, auto=False):
         import sys
 
         CURRENT_LEVEL = os.environ.get('LOG_LEVEL', 'DEBUG')  # por padrao loga tudo
+
         def printlog(msg: str, level: str):
             if level == 'DEBUG':
                 if CURRENT_LEVEL == 'DEBUG':
@@ -208,14 +206,16 @@ def install_external_libs(*modules: str | dict, auto=False):
             importlib.import_module(modname)
         except ImportError:
             if sys.stdout.isatty():
-                from . import bool_input
-                isok = bool_input(f'WARNING: Required module {modname} is not installed. Should try to install {pipname} via pip?', default=True)
+                from utils import bool_input
+                isok = bool_input(f'WARNING: Required module {modname} is not installed.'
+                                  f'Should try to install {pipname} via pip?', default=True)
                 if not isok:
                     return
             elif not auto:
                 warn(f'WARNING: Required module {modname} is not installed!')
                 return
-            exec([sys.executable, '-m', 'pip', 'install', pipname], ignore_output=True, timeout=120)
+            exec([sys.executable, '-m', 'pip', 'install', pipname],
+                 ignore_output=True, timeout=120)  # nosec B102
             warn(f'Module {modname} installed successfully!')
 
     for module in modules:

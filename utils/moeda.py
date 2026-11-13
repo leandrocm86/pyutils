@@ -1,5 +1,4 @@
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Union
 
 
 class Moeda:
@@ -193,9 +192,9 @@ class Moeda:
     # Removendo espacos em branco
     >>> Moeda(' - 10.50 ')
     Moeda('-10.50')
-    """
+    """  # noqa: B950
 
-    def __init__(self, valor: Union[int, float, Decimal, str], br: bool = False):
+    def __init__(self, valor: float | Decimal | str, br: bool = False):
         """
         Inicializa uma instância de Moeda.
 
@@ -235,14 +234,14 @@ class Moeda:
             ValueError: Se o formato for inválido
         """
         # Remove sinal de negativo para validação dos grupos
-        if valor.startswith('-'):
-            valor = valor[1:]
+        valor_positivo = valor.removeprefix('-')
+
         if sep_milhar not in valor:
             # Não há separador de milhar, nada a validar
             return
 
         # Divide em parte inteira e decimal
-        partes = valor.split(sep_decimal)
+        partes = valor_positivo.split(sep_decimal)
         parte_inteira = partes[0]
 
         # Verifica se há separadores de milhar
@@ -285,39 +284,39 @@ class Moeda:
         """Retorna representação oficial do objeto."""
         return f"Moeda('{self._val}')"
 
-    def __add__(self, other: Union['Moeda', int, float, Decimal]) -> 'Moeda':
+    def __add__(self, other: Moeda | float | Decimal) -> 'Moeda':
         """Soma com outra Moeda ou número."""
         if isinstance(other, Moeda):
             return Moeda(self._val + other._val)
         return Moeda(self._val + Decimal(str(other)))
 
-    def __radd__(self, other: Union[int, float, Decimal]) -> 'Moeda':
+    def __radd__(self, other: float | Decimal) -> 'Moeda':
         """Soma reversa (quando Moeda está à direita)."""
         return self.__add__(other)
 
-    def __sub__(self, other: Union['Moeda', int, float, Decimal]) -> 'Moeda':
+    def __sub__(self, other: Moeda | float | Decimal) -> 'Moeda':
         """Subtração com outra Moeda ou número."""
         if isinstance(other, Moeda):
             return Moeda(self._val - other._val)
         return Moeda(self._val - Decimal(str(other)))
 
-    def __rsub__(self, other: Union[int, float, Decimal]) -> 'Moeda':
+    def __rsub__(self, other: float | Decimal) -> 'Moeda':
         """Subtração reversa."""
         return Moeda(Decimal(str(other)) - self._val)
 
-    def __mul__(self, other: Union[int, float, Decimal]) -> 'Moeda':
+    def __mul__(self, other: float | Decimal) -> 'Moeda':
         """Multiplicação por número."""
         return Moeda(self._val * Decimal(str(other)))
 
-    def __rmul__(self, other: Union[int, float, Decimal]) -> 'Moeda':
+    def __rmul__(self, other: float | Decimal) -> 'Moeda':
         """Multiplicação reversa."""
         return self.__mul__(other)
 
-    def __truediv__(self, other: Union[int, float, Decimal]) -> 'Moeda':
+    def __truediv__(self, other: float | Decimal) -> 'Moeda':
         """Divisão por número."""
         return Moeda(self._val / Decimal(str(other)))
 
-    def __rtruediv__(self, other: Union[int, float, Decimal]) -> 'Moeda':
+    def __rtruediv__(self, other: float | Decimal) -> 'Moeda':
         """Divisão reversa."""
         return Moeda(Decimal(str(other)) / self._val)
 

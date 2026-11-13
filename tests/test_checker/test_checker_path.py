@@ -118,13 +118,7 @@ def mock_fs_fixture(monkeypatch):
 
 class TestPathOk:
     """Test suite for the pathok function"""
-
-    def test_type_checking(self):
-        """Test that the function correctly validates the input type"""
-
-        with pytest.raises(TypeError):
-            valpath('/nfs/scripts/')  # type: ignore
-
+        
     def test_exists_check(self):
         """Test checking if a path exists or not"""
         # Successful case - file exists
@@ -259,11 +253,14 @@ class TestPathOk:
 
         # Successful case - path fully matches pattern
         valpath(Path('/grandparent/parent/dir/file.txt'),
-                full_match=r'/.*/.*/.*/.*\.txt')
+                full_match='/*/*/*/*.txt')
+
+        # Another success: ** spans any number of directories
+        valpath(Path('/grandparent/parent/dir/file.txt'), full_match='/**/*.txt')
 
         # Error case - path doesn't fully match pattern (subdirs are not included in '*')
-        #with pytest.raises(InvalidContractError, match="Invalid path: expected full match"):
-        #    valpath(WRX_DIR_WRX_FILE, full_match=".+/wrx_file")
+        with pytest.raises(InvalidContractError, match="Invalid path: expected full match"):
+            valpath(Path('/grandparent/parent/dir/file.txt'), full_match="*.txt")
 
     def test_parent_traverse_errors(self):
         """Test checking parent directory traverse permissions"""

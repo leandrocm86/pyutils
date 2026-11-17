@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from os import environ
 from types import FrameType, TracebackType
-from typing import Any
+from typing import Any, override
 from . import style
 lazy from utils.pstr import pstr
 
@@ -76,51 +76,52 @@ if not (LOG_FILENAME or SYSTEMD) or sys.stdout.isatty():
             self.PARAM_COLOR_START = style.Color.ORANGE.value
             self.PARAM_COLOR_RESET = "\033[0m"
 
-            def format(self, record: logging.LogRecord):
-                if record.args:
-                    args = list(record.args) if isinstance(record.args, tuple) else [record.args]
-                    new_args: list[Any] = []
-                    arg_index = 0
+        @override
+        def format(self, record: logging.LogRecord):
+            if record.args:
+                args = list(record.args) if isinstance(record.args, tuple) else [record.args]
+                new_args: list[Any] = []
+                arg_index = 0
 
-                    def replace_placeholder(match):
-                        nonlocal arg_index
-                        if match.group(1):  # %p
-                            maxlen = int(match.group(2)) if match.group(2) else 50
-                            maxdepth = int(match.group(3)) if match.group(3) else 3
-                            pretty = pstr(
-                                args[arg_index],
-                                colored=True,
-                                maxlen=maxlen,
-                                maxdepth=maxdepth,
-                            )
-                            new_args.append(pretty)
-                            arg_index += 1
-                            return "%s"  # no color wrapping — intentionally plain
-                        elif match.group(4):  # %%
-                            return "%%"
-                        else:  # standard placeholder
-                            new_args.append(args[arg_index])
-                            arg_index += 1
-                            return self.PARAM_COLOR_START + match.group(5) + self.PARAM_COLOR_RESET
-                    record.msg = RE_PLACEHOLDER.sub(replace_placeholder, record.msg)
-                    record.args = tuple(new_args)
+                def replace_placeholder(match):
+                    nonlocal arg_index
+                    if match.group(1):  # %p
+                        maxlen = int(match.group(2)) if match.group(2) else 50
+                        maxdepth = int(match.group(3)) if match.group(3) else 3
+                        pretty = pstr(
+                            args[arg_index],
+                            colored=True,
+                            maxlen=maxlen,
+                            maxdepth=maxdepth,
+                        )
+                        new_args.append(pretty)
+                        arg_index += 1
+                        return "%s"  # no color wrapping — intentionally plain
+                    elif match.group(4):  # %%
+                        return "%%"
+                    else:  # standard placeholder
+                        new_args.append(args[arg_index])
+                        arg_index += 1
+                        return self.PARAM_COLOR_START + match.group(5) + self.PARAM_COLOR_RESET
+                record.msg = RE_PLACEHOLDER.sub(replace_placeholder, record.msg)
+                record.args = tuple(new_args)
 
-                var_formatted_msg = super().format(record)
+            var_formatted_msg = super().format(record)
 
-                header_painter, message_painter = self.COLORS_BY_LEVEL.get(record.levelname, (None, None))
-                if message_painter and header_painter:
-                    index_message = 11 + len(record.levelname)
-                    var_formatted_msg = (
-                        header_painter(var_formatted_msg[:index_message])
-                        + message_painter(var_formatted_msg[index_message:])
-                    )
+            header_painter, message_painter = self.COLORS_BY_LEVEL.get(record.levelname, (None, None))
+            if message_painter and header_painter:
+                index_message = 11 + len(record.levelname)
+                var_formatted_msg = (
+                    header_painter(var_formatted_msg[:index_message])
+                    + message_painter(var_formatted_msg[index_message:])
+                )
 
-                return var_formatted_msg
+            return var_formatted_msg
 
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(ColorFormatter())
     LOG.addHandler(stream_handler)
-    handlers_msgs.append(f"Added stream handler for logger with level {LOG_LEVEL_NAME}")
+    handlers_msgs.append(f"Added stream colored handler for logger with level {LOG_LEVEL_NAME}")
 
 
 # print(". ".join(handlers_msgs), flush=True)
